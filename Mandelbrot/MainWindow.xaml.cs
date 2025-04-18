@@ -9,6 +9,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ILGPU;
+using ILGPU.Algorithms;
+using ILGPU.Algorithms.Sequencers;
 using ILGPU.Runtime;
 using ILGPU.Runtime.Cuda;
 
@@ -34,7 +36,16 @@ public sealed partial class MainWindow : Window
 
     private Context context;
     private Accelerator accelerator;
-    private Action<Index1D, ArrayView1D<int, Stride1D.Dense>, double, double, double, short, short> kernel;
+    private Action<Index1D, ArrayView1D<uint, Stride1D.Dense>, ArrayView1D<uint, Stride1D.Dense>, double, double, double, short, short> kernel;
+
+    private static readonly uint[] Gradient = 
+        {
+            0xFF000000, // black
+            0xFFFF0000, // red
+            0xFF00FF00, // green
+            0xFF0000FF, // blue
+            0xFFFFFFFF  // white
+        };
 
     public MainWindow()
     {
@@ -46,7 +57,12 @@ public sealed partial class MainWindow : Window
 
         // Load the kernel once during initialization.
         kernel = accelerator.LoadAutoGroupedStreamKernel
-            <Index1D, ArrayView1D<int, Stride1D.Dense>, double, double, double, short, short>(MandelbrotKernel.ComputeMandelbrotFrame);
+            <Index1D, ArrayView1D<uint, Stride1D.Dense>, ArrayView1D<uint, Stride1D.Dense>, double, double, double, short, short>(MandelbrotKernel.ComputeMandelbrotFrame);
+
+        gradientBuffer = accelerator.Allocate1D<uint>(Gradient.Length);
+        gradientBuffer.CopyFromCPU(Gradient);
+
+        ReallocateBuffer();
 
         accelerator.Synchronize();
 
@@ -59,30 +75,26 @@ public sealed partial class MainWindow : Window
         this.SizeChanged += MainWindow_SizeChanged;
         this.KeyDown += MainWindow_KeyDown;
 
-        GenerateColorLookup();
-
-        ReallocateBuffer();
-
         // Generate the initial Mandelbrot set.
         GenerateMandelbrotFrame();
     }
 
-    private readonly uint[] _colorByIteration = new uint[MandelbrotConstants.MaxIterations + 1];
-    private readonly uint _black = ToColor32(Colors.Black);
-    private static uint ToColor32(Color color)
-    {
-        return (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
-    }
+    //private readonly uint[] _colorByIteration = new uint[MandelbrotConstants.MaxIterations + 1];
+    //private readonly uint _black = ToColor32(Colors.Black);
+    //private static uint ToColor32(Color color)
+    //{
+    //    return (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
+    //}
 
-    private void GenerateColorLookup()
-    {
-        for (var i = 0; i <= MandelbrotConstants.MaxIterations; i++)
-        {
-            var color = ColorFromHSV((double)i / MandelbrotConstants.MaxIterations * 360.0);
-            var color32 = (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
-            _colorByIteration[i] = color32;
-        }
-    }
+    //private void GenerateColorLookup()
+    //{
+    //    for (var i = 0; i <= MandelbrotConstants.MaxIterations; i++)
+    //    {
+    //        var color = ColorFromHSV((double)i / MandelbrotConstants.MaxIterations * 360.0);
+    //        var color32 = (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
+    //        _colorByIteration[i] = color32;
+    //    }
+    //}
 
     private void MainWindow_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -98,7 +110,7 @@ public sealed partial class MainWindow : Window
     private void ReallocateBuffer()
     {
         if (buffer != null) buffer.Dispose();
-        buffer = accelerator.Allocate1D<int>(width * height);
+        buffer = accelerator.Allocate1D<uint>(width * height);
     }
 
     private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -237,7 +249,8 @@ public sealed partial class MainWindow : Window
         context.Dispose();
     }
 
-    private MemoryBuffer1D<int, Stride1D.Dense> buffer;
+    private MemoryBuffer1D<uint, Stride1D.Dense> buffer;
+    private MemoryBuffer1D<uint, Stride1D.Dense> gradientBuffer;
 
     private void GenerateMandelbrotFrame()
     {
@@ -261,17 +274,17 @@ public sealed partial class MainWindow : Window
         // Allocate GPU memory once
         //using MemoryBuffer1D<int, Stride1D.Dense> buffer = accelerator.Allocate1D<int>(pixelCount);
 
-        kernel(pixelCount, buffer.View, centerX, centerY, scale, width, height);
+        kernel(pixelCount, buffer.View, gradientBuffer.View, centerX, centerY, scale, width, height);
         //accelerator.Synchronize();
 
         // Retrieve the results from GPU
-        int[] result = buffer.GetAsArray1D();
+        uint[] result = buffer.GetAsArray1D();
 
         // Set the Image control source to display the Mandelbrot set.
         MandelbrotImage.Source = CreateFrameBitmap(result);
     }
 
-    private WriteableBitmap CreateFrameBitmap(int[] pixels)
+    private WriteableBitmap CreateFrameBitmap(uint[] pixels)
     {
         // Create a WriteableBitmap and fill it with the Mandelbrot set image.
         var bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
@@ -287,8 +300,7 @@ public sealed partial class MainWindow : Window
 
                 for (int x = 0; x < width; x++)
                 {
-                    var iterations = pixels[rowOffset + x];
-                    var color32 = GetPixelColor(iterations);
+                    var color32 = pixels[rowOffset + x];
                     row[x] = color32;
                 }
             });
@@ -299,42 +311,42 @@ public sealed partial class MainWindow : Window
         return bitmap;
     }
 
-    //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private UInt32 GetPixelColor(int iterations)
-    {
-        if (iterations >= MandelbrotConstants.MaxIterations)
-        {
-            return _black;
-        }
-        else
-        {
-            // Convert HSV to RGB for a more colour pleasing image.
-            return _colorByIteration[iterations];
-        }
-    }
+    ////[MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //private UInt32 GetPixelColor(int iterations)
+    //{
+    //    if (iterations >= MandelbrotConstants.MaxIterations)
+    //    {
+    //        return _black;
+    //    }
+    //    else
+    //    {
+    //        // Convert HSV to RGB for a more colour pleasing image.
+    //        return _colorByIteration[iterations];
+    //    }
+    //}
 
-    private static Color ColorFromHSV(double hue)
-    {
-        sbyte hi = Convert.ToSByte(Math.Floor(hue / 60) % 6);
-        double f = hue / 60 - Math.Floor(hue / 60);
+    //private static Color ColorFromHSV(double hue)
+    //{
+    //    sbyte hi = Convert.ToSByte(Math.Floor(hue / 60) % 6);
+    //    double f = hue / 60 - Math.Floor(hue / 60);
 
-        byte q = Convert.ToByte(255 * (1 - f));
-        byte t = Convert.ToByte(255 * (1 - (1 - f)));
+    //    byte q = Convert.ToByte(255 * (1 - f));
+    //    byte t = Convert.ToByte(255 * (1 - (1 - f)));
 
-        const byte v = 255;
-        const byte p = 0;
+    //    const byte v = 255;
+    //    const byte p = 0;
 
-        if (hi == 0)
-            return Color.FromArgb(255, v, t, p);
-        else if (hi == 1)
-            return Color.FromArgb(255, q, v, p);
-        else if (hi == 2)
-            return Color.FromArgb(255, p, v, t);
-        else if (hi == 3)
-            return Color.FromArgb(255, p, q, v);
-        else if (hi == 4)
-            return Color.FromArgb(255, t, p, v);
-        else
-            return Color.FromArgb(255, v, p, q);
-    }
+    //    if (hi == 0)
+    //        return Color.FromArgb(255, v, t, p);
+    //    else if (hi == 1)
+    //        return Color.FromArgb(255, q, v, p);
+    //    else if (hi == 2)
+    //        return Color.FromArgb(255, p, v, t);
+    //    else if (hi == 3)
+    //        return Color.FromArgb(255, p, q, v);
+    //    else if (hi == 4)
+    //        return Color.FromArgb(255, t, p, v);
+    //    else
+    //        return Color.FromArgb(255, v, p, q);
+    //}
 }
