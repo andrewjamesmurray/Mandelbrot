@@ -1,7 +1,6 @@
 ﻿// Fast Mandelbrot Rendering with GPU in C#.
 // Guy Fernando - i4cy (2024)
 using ILGPU;
-using ILGPU.Algorithms;
 using ILGPU.Runtime;
 
 namespace Mandelbrot;
@@ -53,8 +52,8 @@ public static class MandelbrotKernel
             iteration++;
         }
 
-        var colorIndex = (int)XMath.Clamp(iteration * (gradient.Length - 1) / maxIter, 0, gradient.Length - 1);
+        uint color = (iteration >= maxIter) ? 0 : gradient[iteration];
 
-        output[index] = gradient[colorIndex];
+        output[index] = color;
     }
 }

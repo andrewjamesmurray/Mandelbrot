@@ -16,11 +16,6 @@ using ILGPU.Runtime.Cuda;
 
 namespace Mandelbrot;
 
-public static class MandelbrotConstants
-{
-    public const short MaxIterations = 1000;
-}
-
 public sealed partial class MainWindow : Window
 {
     private short width;
@@ -37,15 +32,7 @@ public sealed partial class MainWindow : Window
     private Context context;
     private Accelerator accelerator;
     private Action<Index1D, ArrayView1D<uint, Stride1D.Dense>, ArrayView1D<uint, Stride1D.Dense>, double, double, double, short, short> kernel;
-
-    private static readonly uint[] Gradient = 
-        {
-            0xFF000000, // black
-            0xFFFF0000, // red
-            0xFF00FF00, // green
-            0xFF0000FF, // blue
-            0xFFFFFFFF  // white
-        };
+    private static readonly uint[] Gradient = Palette.GenerateColorLookup();
 
     public MainWindow()
     {
@@ -79,22 +66,6 @@ public sealed partial class MainWindow : Window
         GenerateMandelbrotFrame();
     }
 
-    //private readonly uint[] _colorByIteration = new uint[MandelbrotConstants.MaxIterations + 1];
-    //private readonly uint _black = ToColor32(Colors.Black);
-    //private static uint ToColor32(Color color)
-    //{
-    //    return (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
-    //}
-
-    //private void GenerateColorLookup()
-    //{
-    //    for (var i = 0; i <= MandelbrotConstants.MaxIterations; i++)
-    //    {
-    //        var color = ColorFromHSV((double)i / MandelbrotConstants.MaxIterations * 360.0);
-    //        var color32 = (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
-    //        _colorByIteration[i] = color32;
-    //    }
-    //}
 
     private void MainWindow_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -260,7 +231,6 @@ public sealed partial class MainWindow : Window
         UpdateStatusBar();
 
         double aspectRatio = (double)width / height;
-
         double adjustedScaleX = scale;
         double adjustedScaleY = scale;
 
@@ -271,14 +241,14 @@ public sealed partial class MainWindow : Window
 
         int pixelCount = width * height;
 
-        // Allocate GPU memory once
-        //using MemoryBuffer1D<int, Stride1D.Dense> buffer = accelerator.Allocate1D<int>(pixelCount);
+        //For now we're reusing a buffer (slight perf improvement)
+        //using MemoryBuffer1D<uint, Stride1D.Dense> buffer = accelerator.Allocate1D<uint>(pixelCount);
 
         kernel(pixelCount, buffer.View, gradientBuffer.View, centerX, centerY, scale, width, height);
         //accelerator.Synchronize();
 
         // Retrieve the results from GPU
-        uint[] result = buffer.GetAsArray1D();
+        var result = buffer.GetAsArray1D();
 
         // Set the Image control source to display the Mandelbrot set.
         MandelbrotImage.Source = CreateFrameBitmap(result);
@@ -289,11 +259,13 @@ public sealed partial class MainWindow : Window
         // Create a WriteableBitmap and fill it with the Mandelbrot set image.
         var bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
         bitmap.Lock();
+
         unsafe
         {
             uint* backBuffer = (uint*)bitmap.BackBuffer;
 
-            Parallel.For(0, height, y =>
+            // Parallelizing this makes it 10fps faster in VS but 1fps slower from Command line *shrug*
+            for (int y = 0; y < height; y++)
             {
                 int rowOffset = y * width;
                 uint* row = backBuffer + rowOffset;
@@ -303,50 +275,11 @@ public sealed partial class MainWindow : Window
                     var color32 = pixels[rowOffset + x];
                     row[x] = color32;
                 }
-            });
+            };
         }
         bitmap.AddDirtyRect(new Int32Rect(0, 0, width, height));
         bitmap.Unlock();
 
         return bitmap;
     }
-
-    ////[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    //private UInt32 GetPixelColor(int iterations)
-    //{
-    //    if (iterations >= MandelbrotConstants.MaxIterations)
-    //    {
-    //        return _black;
-    //    }
-    //    else
-    //    {
-    //        // Convert HSV to RGB for a more colour pleasing image.
-    //        return _colorByIteration[iterations];
-    //    }
-    //}
-
-    //private static Color ColorFromHSV(double hue)
-    //{
-    //    sbyte hi = Convert.ToSByte(Math.Floor(hue / 60) % 6);
-    //    double f = hue / 60 - Math.Floor(hue / 60);
-
-    //    byte q = Convert.ToByte(255 * (1 - f));
-    //    byte t = Convert.ToByte(255 * (1 - (1 - f)));
-
-    //    const byte v = 255;
-    //    const byte p = 0;
-
-    //    if (hi == 0)
-    //        return Color.FromArgb(255, v, t, p);
-    //    else if (hi == 1)
-    //        return Color.FromArgb(255, q, v, p);
-    //    else if (hi == 2)
-    //        return Color.FromArgb(255, p, v, t);
-    //    else if (hi == 3)
-    //        return Color.FromArgb(255, p, q, v);
-    //    else if (hi == 4)
-    //        return Color.FromArgb(255, t, p, v);
-    //    else
-    //        return Color.FromArgb(255, v, p, q);
-    //}
 }
