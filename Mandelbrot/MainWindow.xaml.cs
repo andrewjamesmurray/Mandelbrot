@@ -65,10 +65,12 @@ public sealed partial class MainWindow : Window
         GenerateMandelbrotFrame();
     }
 
-    private static UInt32 ToColor32(Color color) => (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
-
     private readonly UInt32[] _colorByIteration = new UInt32[MandelbrotConstants.MaxIterations + 1];
     private readonly UInt32 _black = ToColor32(Colors.Black);
+    private static UInt32 ToColor32(Color color)
+    {
+        return (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
+    }
 
     private void GenerateColorLookup()
     {
@@ -226,33 +228,27 @@ public sealed partial class MainWindow : Window
     private void GenerateMandelbrotFrame()
     {
         if (width <= 0 || height <= 0)
-            return; // Skip rendering if dimensions are invalid.
+            return; 
 
-        // Update Status Bar.
         UpdateStatusBar();
 
-        // Calculate the aspect ratio
         double aspectRatio = (double)width / height;
 
-        // Determine the scaling factors to maintain aspect ratio.
-        double adjustedScaleX, adjustedScaleY;
+        double adjustedScaleX = scale;
+        double adjustedScaleY = scale;
+
         if (aspectRatio >= 1.0)
-        {
-            adjustedScaleX = scale * aspectRatio;
-            adjustedScaleY = scale;
-        }
+            adjustedScaleX *= aspectRatio;
         else
-        {
-            adjustedScaleX = scale;
-            adjustedScaleY = scale / aspectRatio;
-        }
+            adjustedScaleY /= aspectRatio;
 
-        // Allocate memory on the GPU.
-        using var buffer = accelerator.Allocate1D<int>(width * height);
+        int pixelCount = width * height;
 
-        // Execute the kernel with the current parameters.
-        kernel(width * height, buffer.View, centerX, centerY, scale, width, height);
-        accelerator.Synchronize();
+        // Allocate GPU memory once
+        using var buffer = accelerator.Allocate1D<int>(pixelCount);
+
+        kernel(pixelCount, buffer.View, centerX, centerY, scale, width, height);
+        //accelerator.Synchronize();
 
         // Retrieve the results from GPU
         int[] result = buffer.GetAsArray1D();
@@ -289,6 +285,7 @@ public sealed partial class MainWindow : Window
         return bitmap;
     }
 
+    //[MethodImpl(MethodImplOptions.AggressiveInlining)]
     private UInt32 GetPixelColor(int iterations)
     {
         if (iterations >= MandelbrotConstants.MaxIterations)
