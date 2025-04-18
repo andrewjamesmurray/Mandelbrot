@@ -65,14 +65,18 @@ public sealed partial class MainWindow : Window
         GenerateMandelbrotFrame();
     }
 
-    private readonly Color[] _colorByIteration = new Color[MandelbrotConstants.MaxIterations+1];
-    private readonly Color _black = Colors.Black;
+    private static UInt32 ToColor32(Color color) => (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
+
+    private readonly UInt32[] _colorByIteration = new UInt32[MandelbrotConstants.MaxIterations + 1];
+    private readonly UInt32 _black = ToColor32(Colors.Black);
 
     private void GenerateColorLookup()
     {
         for (var i = 0; i <= MandelbrotConstants.MaxIterations; i++)
         {
-            _colorByIteration[i] = ColorFromHSV((double)i / MandelbrotConstants.MaxIterations * 360.0);
+            var color = ColorFromHSV((double)i / MandelbrotConstants.MaxIterations * 360.0);
+            var color32 = (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
+            _colorByIteration[i] = color32;
         }
     }
 
@@ -274,8 +278,7 @@ public sealed partial class MainWindow : Window
                 for (int x = 0; x < width; x++)
                 {
                     var iterations = pixels[rowOffset + x];
-                    var color = GetPixelColor(iterations);
-                    var color32 = (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
+                    var color32 = GetPixelColor(iterations);
                     row[x] = color32;
                 }
             });
@@ -286,7 +289,7 @@ public sealed partial class MainWindow : Window
         return bitmap;
     }
 
-    private Color GetPixelColor(int iterations)
+    private UInt32 GetPixelColor(int iterations)
     {
         if (iterations >= MandelbrotConstants.MaxIterations)
         {
