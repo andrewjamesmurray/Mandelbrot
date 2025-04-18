@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -262,21 +263,14 @@ public sealed partial class MainWindow : Window
 
         unsafe
         {
-            uint* backBuffer = (uint*)bitmap.BackBuffer;
-
-            // Parallelizing this makes it 10fps faster in VS but 1fps slower from Command line *shrug*
-            for (int y = 0; y < height; y++)
-            {
-                int rowOffset = y * width;
-                uint* row = backBuffer + rowOffset;
-
-                for (int x = 0; x < width; x++)
-                {
-                    var color32 = pixels[rowOffset + x];
-                    row[x] = color32;
-                }
-            };
+            Buffer.MemoryCopy(
+                source: Unsafe.AsPointer(ref pixels[0]),
+                destination: bitmap.BackBuffer.ToPointer(),
+                destinationSizeInBytes: pixels.Length * sizeof(uint),
+                sourceBytesToCopy: pixels.Length * sizeof(uint)
+            );
         }
+
         bitmap.AddDirtyRect(new Int32Rect(0, 0, width, height));
         bitmap.Unlock();
 
