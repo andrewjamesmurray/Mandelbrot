@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -65,6 +66,7 @@ public sealed partial class MainWindow : Window
     }
 
     private readonly Color[] _colorByIteration = new Color[MandelbrotConstants.MaxIterations+1];
+    private readonly Color _black = Colors.Black;
 
     private void GenerateColorLookup()
     {
@@ -271,8 +273,10 @@ public sealed partial class MainWindow : Window
 
                 for (int x = 0; x < width; x++)
                 {
-                    Color color = GetPixelColor(pixels[rowOffset + x]);
-                    row[x] = (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
+                    var iterations = pixels[rowOffset + x];
+                    var color = GetPixelColor(iterations);
+                    var color32 = (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
+                    row[x] = color32;
                 }
             });
         }
@@ -286,7 +290,7 @@ public sealed partial class MainWindow : Window
     {
         if (iterations >= MandelbrotConstants.MaxIterations)
         {
-            return Colors.Black;
+            return _black;
         }
         else
         {
