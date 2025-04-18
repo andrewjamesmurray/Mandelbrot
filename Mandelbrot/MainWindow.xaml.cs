@@ -58,8 +58,20 @@ public sealed partial class MainWindow : Window
         this.SizeChanged += MainWindow_SizeChanged;
         this.KeyDown += MainWindow_KeyDown;
 
+        GenerateColorLookup();
+
         // Generate the initial Mandelbrot set.
         GenerateMandelbrotFrame();
+    }
+
+    private readonly Color[] _colorByIteration = new Color[MandelbrotConstants.MaxIterations+1];
+
+    private void GenerateColorLookup()
+    {
+        for (var i = 0; i <= MandelbrotConstants.MaxIterations; i++)
+        {
+            _colorByIteration[i] = ColorFromHSV((double)i / MandelbrotConstants.MaxIterations * 360.0);
+        }
     }
 
     private void MainWindow_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
@@ -270,9 +282,6 @@ public sealed partial class MainWindow : Window
         return bitmap;
     }
 
-    private readonly ConcurrentDictionary<int, Color> _iterationsToColor = new();
-    const double MaxIterationsTimes360 = MandelbrotConstants.MaxIterations / 360.0;
-
     private Color GetPixelColor(int iterations)
     {
         if (iterations >= MandelbrotConstants.MaxIterations)
@@ -282,7 +291,7 @@ public sealed partial class MainWindow : Window
         else
         {
             // Convert HSV to RGB for a more colour pleasing image.
-            return _iterationsToColor.GetOrAdd(iterations, i => ColorFromHSV(i / MaxIterationsTimes360));
+            return _colorByIteration[iterations];
         }
     }
 
