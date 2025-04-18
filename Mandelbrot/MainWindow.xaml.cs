@@ -2,6 +2,7 @@
 // Guy Fernando - i4cy (2024)
 
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -126,7 +127,7 @@ public partial class MainWindow : Window
         double normY = (mousePos.Y / height - 0.5) * scale;
 
         // Adjust scale based on the scroll direction
-        scale *= e.Delta > 0 ? 0.9 : 1.1;
+        scale *= e.Delta > 0 ? 0.95 : 1.05;
 
         // Adjust the center point based on the normalized mouse position.
         centerX += normX * (1 - scale / (scale * (e.Delta > 0 ? 0.9 : 1.1)));
@@ -220,7 +221,7 @@ public partial class MainWindow : Window
         using var buffer = accelerator.Allocate1D<int>(width * height);
 
         // Execute the kernel with the current parameters.
-        kernel((int)(width * height), buffer.View, centerX, centerY, scale, width, height);
+        kernel(width * height, buffer.View, centerX, centerY, scale, width, height);
         accelerator.Synchronize();
 
         // Retrieve the results from GPU
@@ -233,21 +234,23 @@ public partial class MainWindow : Window
     private WriteableBitmap CreateFrameBitmap(int[] pixels)
     {
         // Create a WriteableBitmap and fill it with the Mandelbrot set image.
-        WriteableBitmap bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
+        var bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
         bitmap.Lock();
         unsafe
         {
-            IntPtr pBackBuffer = bitmap.BackBuffer;
-            for (short y = 0; y < height; y++)
-            {
-                for (short x = 0; x < width; x++)
-                {
-                    Color color = GetPixelColor(pixels[y * width + x]);
+            uint* backBuffer = (uint*)bitmap.BackBuffer;
 
-                    *((uint*)pBackBuffer + y * width + x) =
-                        (uint)((color.A << 24) | (color.R << 16) | (color.G << 8) | (color.B << 0));
+            Parallel.For(0, height, y =>
+            {
+                int rowOffset = y * width;
+                uint* row = backBuffer + rowOffset;
+
+                for (int x = 0; x < width; x++)
+                {
+                    Color color = GetPixelColor(pixels[rowOffset + x]);
+                    row[x] = (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
                 }
-            }
+            });
         }
         bitmap.AddDirtyRect(new Int32Rect(0, 0, width, height));
         bitmap.Unlock();
@@ -255,8 +258,11 @@ public partial class MainWindow : Window
         return bitmap;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Color GetPixelColor(int iterations)
     {
+        const double MaxIterationsTimes360 = MandelbrotConstants.MaxIterations / 360.0;
+
         if (iterations >= MandelbrotConstants.MaxIterations)
         {
             return Colors.Black;
@@ -265,14 +271,15 @@ public partial class MainWindow : Window
         {
             // Convert HSV to RGB for a more colour pleasing image.
             return ColorFromHSV(
-                ((double)(iterations)) / MandelbrotConstants.MaxIterations * 360.0,
+                iterations / MaxIterationsTimes360,
                 1.0,
                 1.0
                 );
         }
     }
 
-    public static Color ColorFromHSV(double hue, double saturation, double value)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Color ColorFromHSV(double hue, double saturation, double value)
     {
         sbyte hi = Convert.ToSByte(Math.Floor(hue / 60) % 6);
         double f = hue / 60 - Math.Floor(hue / 60);
