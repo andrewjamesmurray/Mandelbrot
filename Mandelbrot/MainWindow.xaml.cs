@@ -1,6 +1,7 @@
 ﻿// Fast Mandelbrot Rendering with GPU in C#.
 // Guy Fernando - i4cy (2024)
 
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -162,6 +163,10 @@ public partial class MainWindow : Window
         // Zoom speed multiplier.
         const double zoomFactorIncrement = 0.95;
 
+        var sw = new Stopwatch();
+        sw.Start();
+        int frames = 0;
+
         while (isZooming && scale > 1e-13) // Stop when zoom factor is extremely high.
         {
             // Reduce the zoom scale.
@@ -172,7 +177,13 @@ public partial class MainWindow : Window
 
             // Allow the UI to update by awaiting a small delay ensuring UI responsiveness.
             await Task.Delay(1);
+
+            frames++;
         }
+
+        sw.Stop();
+        ZoomFactorText.Text = (frames / sw.Elapsed.TotalMilliseconds * 1000).ToString("0.00");
+
     }
 
     private void UpdateStatusBar()
@@ -270,25 +281,21 @@ public partial class MainWindow : Window
         else
         {
             // Convert HSV to RGB for a more colour pleasing image.
-            return ColorFromHSV(
-                iterations / MaxIterationsTimes360,
-                1.0,
-                1.0
-                );
+            return ColorFromHSV(iterations / MaxIterationsTimes360);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Color ColorFromHSV(double hue, double saturation, double value)
+    private static Color ColorFromHSV(double hue)
     {
         sbyte hi = Convert.ToSByte(Math.Floor(hue / 60) % 6);
         double f = hue / 60 - Math.Floor(hue / 60);
 
-        value = value * 255;
-        byte v = Convert.ToByte(value);
-        byte p = Convert.ToByte(value * (1 - saturation));
-        byte q = Convert.ToByte(value * (1 - f * saturation));
-        byte t = Convert.ToByte(value * (1 - (1 - f) * saturation));
+        byte q = Convert.ToByte(255 * (1 - f));
+        byte t = Convert.ToByte(255 * (1 - (1 - f)));
+
+        const byte v = 255;
+        const byte p = 0;
 
         if (hi == 0)
             return Color.FromArgb(255, v, t, p);
