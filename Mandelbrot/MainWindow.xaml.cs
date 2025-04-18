@@ -1,12 +1,10 @@
 ﻿// Fast Mandelbrot Rendering with GPU in C#.
 // Guy Fernando - i4cy (2024)
+// Optimized by Andrew Murray (2025)
 
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.CompilerServices;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -50,6 +48,8 @@ public sealed partial class MainWindow : Window
         kernel = accelerator.LoadAutoGroupedStreamKernel
             <Index1D, ArrayView1D<int, Stride1D.Dense>, double, double, double, short, short>(MandelbrotKernel.ComputeMandelbrotFrame);
 
+        accelerator.Synchronize();
+
         // Add event handlers for zooming, panning, and resizing.
         this.MouseWheel += MainWindow_MouseWheel;
         this.MouseRightButtonDown += MainWindow_MouseRightButtonDown;
@@ -61,13 +61,15 @@ public sealed partial class MainWindow : Window
 
         GenerateColorLookup();
 
+        ReallocateBuffer();
+
         // Generate the initial Mandelbrot set.
         GenerateMandelbrotFrame();
     }
 
-    private readonly UInt32[] _colorByIteration = new UInt32[MandelbrotConstants.MaxIterations + 1];
-    private readonly UInt32 _black = ToColor32(Colors.Black);
-    private static UInt32 ToColor32(Color color)
+    private readonly uint[] _colorByIteration = new uint[MandelbrotConstants.MaxIterations + 1];
+    private readonly uint _black = ToColor32(Colors.Black);
+    private static uint ToColor32(Color color)
     {
         return (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
     }
@@ -93,11 +95,19 @@ public sealed partial class MainWindow : Window
         GenerateMandelbrotFrame();
     }
 
+    private void ReallocateBuffer()
+    {
+        if (buffer != null) buffer.Dispose();
+        buffer = accelerator.Allocate1D<int>(width * height);
+    }
+
     private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         // Update the width and height based on the new window size.
         width = (short)e.NewSize.Width;
         height = (short)e.NewSize.Height;
+
+        ReallocateBuffer();
 
         // Regenerate the Mandelbrot set with the updated dimensions.
         GenerateMandelbrotFrame();
@@ -219,11 +229,15 @@ public sealed partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        if (buffer != null) buffer.Dispose();
+
         // Cleanup resources on window close.
         base.OnClosed(e);
         accelerator.Dispose();
         context.Dispose();
     }
+
+    private MemoryBuffer1D<int, Stride1D.Dense> buffer;
 
     private void GenerateMandelbrotFrame()
     {
@@ -245,7 +259,7 @@ public sealed partial class MainWindow : Window
         int pixelCount = width * height;
 
         // Allocate GPU memory once
-        using var buffer = accelerator.Allocate1D<int>(pixelCount);
+        //using MemoryBuffer1D<int, Stride1D.Dense> buffer = accelerator.Allocate1D<int>(pixelCount);
 
         kernel(pixelCount, buffer.View, centerX, centerY, scale, width, height);
         //accelerator.Synchronize();

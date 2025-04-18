@@ -32,36 +32,24 @@ public static class MandelbrotKernel
         }
 
         // Calculate the complex coordinate.
-        Complex c = GetComplexCoordinate(x, y, adjustedScaleX, adjustedScaleY, centerX, centerY, width, height);
+
+        double real = (x * adjustedScaleX / width) - (adjustedScaleX / 2) + centerX;
+        double imaginary = (y * adjustedScaleY / height) - (adjustedScaleY / 2) + centerY;
 
         // Perform Mandelbrot iteration.
-        short iterations = CalculateMandelbrotPixel(c);
+        double zx = 0.0, zy = 0.0;
+        int iteration = 0;
+        const int maxIter = MandelbrotConstants.MaxIterations;
 
-        // Write result to output.
-        output[index] = iterations;
-    }
-
-    private static Complex GetComplexCoordinate(
-        int x, int y, double scaleX, double scaleY, double centerX, double centerY, short width, short height)
-    {
-        double real = (x * scaleX / width) - (scaleX / 2) + centerX;
-        double imaginary = (y * scaleY / height) - (scaleY / 2) + centerY;
-
-        return new Complex(real, imaginary);
-    }
-
-    private static short CalculateMandelbrotPixel(Complex c)
-    {
-        Complex z = Complex.Zero;
-        short iterations = 0;
-
-        while (iterations < MandelbrotConstants.MaxIterations && (z.Real * z.Real + z.Imaginary * z.Imaginary) <= 4.0)
+        while (zx * zx + zy * zy <= 4.0 && iteration < maxIter)
         {
-            // z based on Mandelbrot iteration formula z = z^2 + c.
-            z = z * z + c;
-            iterations++;
+            double temp = zx * zx - zy * zy + real;
+            zy = 2.0 * zx * zy + imaginary;
+            zx = temp;
+            iteration++;
         }
 
-        return iterations;
+        // Write result to output.
+        output[index] = iteration;
     }
 }
