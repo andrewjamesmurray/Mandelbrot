@@ -1,6 +1,7 @@
 ﻿// Fast Mandelbrot Rendering with GPU in C#.
 // Guy Fernando - i4cy (2024)
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -19,7 +20,7 @@ public static class MandelbrotConstants
     public const short MaxIterations = 1000;
 }
 
-public partial class MainWindow : Window
+public sealed partial class MainWindow : Window
 {
     private short width;
     private short height;
@@ -269,11 +270,11 @@ public partial class MainWindow : Window
         return bitmap;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static Color GetPixelColor(int iterations)
-    {
-        const double MaxIterationsTimes360 = MandelbrotConstants.MaxIterations / 360.0;
+    private readonly ConcurrentDictionary<int, Color> _iterationsToColor = new();
+    const double MaxIterationsTimes360 = MandelbrotConstants.MaxIterations / 360.0;
 
+    private Color GetPixelColor(int iterations)
+    {
         if (iterations >= MandelbrotConstants.MaxIterations)
         {
             return Colors.Black;
@@ -281,11 +282,10 @@ public partial class MainWindow : Window
         else
         {
             // Convert HSV to RGB for a more colour pleasing image.
-            return ColorFromHSV(iterations / MaxIterationsTimes360);
+            return _iterationsToColor.GetOrAdd(iterations, i => ColorFromHSV(i / MaxIterationsTimes360));
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Color ColorFromHSV(double hue)
     {
         sbyte hi = Convert.ToSByte(Math.Floor(hue / 60) % 6);
