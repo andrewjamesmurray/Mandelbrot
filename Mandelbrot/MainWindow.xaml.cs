@@ -10,8 +10,6 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ILGPU;
-using ILGPU.Algorithms;
-using ILGPU.Algorithms.Sequencers;
 using ILGPU.Runtime;
 using ILGPU.Runtime.Cuda;
 
@@ -50,10 +48,7 @@ public sealed partial class MainWindow : Window
         gradientBuffer = accelerator.Allocate1D<uint>(Gradient.Length);
         gradientBuffer.CopyFromCPU(Gradient);
 
-        ReallocateBuffer();
-
-        accelerator.Synchronize();
-
+ 
         // Add event handlers for zooming, panning, and resizing.
         this.MouseWheel += MainWindow_MouseWheel;
         this.MouseRightButtonDown += MainWindow_MouseRightButtonDown;
@@ -62,6 +57,9 @@ public sealed partial class MainWindow : Window
         this.MouseMove += MainWindow_MouseMove;
         this.SizeChanged += MainWindow_SizeChanged;
         this.KeyDown += MainWindow_KeyDown;
+
+        ReallocateBuffer();
+        accelerator.Synchronize();
 
         // Generate the initial Mandelbrot set.
         GenerateMandelbrotFrame();
@@ -79,10 +77,15 @@ public sealed partial class MainWindow : Window
         GenerateMandelbrotFrame();
     }
 
+    // To be called whenever width or height are initialized or changed
     private void ReallocateBuffer()
     {
+        if (height == 0 || width == 0) return;
+
         if (buffer != null) buffer.Dispose();
+
         buffer = accelerator.Allocate1D<uint>(width * height);
+        bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
     }
 
     private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -197,7 +200,7 @@ public sealed partial class MainWindow : Window
         }
 
         sw.Stop();
-        ZoomFactorText.Text = (frames / sw.Elapsed.TotalMilliseconds * 1000).ToString("0.00");
+        ZoomFactorText.Text = (frames / sw.Elapsed.TotalMilliseconds * 1000).ToString("0.00") + " fps";
 
     }
 
@@ -222,6 +225,7 @@ public sealed partial class MainWindow : Window
     }
 
     private MemoryBuffer1D<uint, Stride1D.Dense> buffer;
+    private WriteableBitmap bitmap;
     private MemoryBuffer1D<uint, Stride1D.Dense> gradientBuffer;
 
     private void GenerateMandelbrotFrame()
@@ -242,11 +246,7 @@ public sealed partial class MainWindow : Window
 
         int pixelCount = width * height;
 
-        //For now we're reusing a buffer (slight perf improvement)
-        //using MemoryBuffer1D<uint, Stride1D.Dense> buffer = accelerator.Allocate1D<uint>(pixelCount);
-
         kernel(pixelCount, buffer.View, gradientBuffer.View, centerX, centerY, scale, width, height);
-        //accelerator.Synchronize();
 
         // Retrieve the results from GPU
         var result = buffer.GetAsArray1D();
@@ -257,8 +257,6 @@ public sealed partial class MainWindow : Window
 
     private WriteableBitmap CreateFrameBitmap(uint[] pixels)
     {
-        // Create a WriteableBitmap and fill it with the Mandelbrot set image.
-        var bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
         bitmap.Lock();
 
         unsafe
