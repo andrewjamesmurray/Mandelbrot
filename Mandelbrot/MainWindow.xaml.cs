@@ -1,3 +1,4 @@
+﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -193,6 +194,8 @@ public sealed partial class MainWindow : Window
             // Render the Mandelbrot set at the new zoom level.
             GenerateMandelbrotFrame();
 
+            FpsLabel.Text = (frames / sw.Elapsed.TotalMilliseconds * 1000).ToString("0") + " fps";
+
             // Allow the UI to update by awaiting a small delay ensuring UI responsiveness.
             await Task.Delay(1);
 
@@ -200,18 +203,6 @@ public sealed partial class MainWindow : Window
         }
 
         sw.Stop();
-        ZoomFactorText.Text = (frames / sw.Elapsed.TotalMilliseconds * 1000).ToString("0.00") + " fps";
-
-    }
-
-    private void UpdateStatusBar()
-    {
-        CenterXText.Text = $"Center X: {centerX:F14}";
-        CenterYText.Text = $"Center Y: {centerY:F14}";
-
-        // Display zoom factor in engineering format
-        string zoomFormatted = (1 / scale).ToString("F1", CultureInfo.InvariantCulture);
-        ZoomFactorText.Text = $"Zoom: {zoomFormatted}";
     }
 
     protected override void OnClosed(EventArgs e)
@@ -228,8 +219,6 @@ public sealed partial class MainWindow : Window
     {
         if (width <= 0 || height <= 0)
             return; 
-
-        UpdateStatusBar();
 
         double aspectRatio = (double)width / height;
         double adjustedScaleX = scale;

@@ -3,29 +3,21 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="GPU Mandelbrot Set Generator" Width="1024" Height="768">
     
-    <DockPanel>
-        <!-- Status Bar at the bottom -->
-        <StatusBar DockPanel.Dock="Bottom">
-            <StatusBarItem>
-                <TextBlock Text="Guy Fernando (i4cy.com) 2024." />
-            </StatusBarItem>
-            <StatusBarItem>
-                <StackPanel Width="150" />
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock Name="CenterXText" Text="Center X: 0.0" />
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock Name="CenterYText" Text="Center Y: 0.0" />
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock Name="ZoomFactorText" Text="Zoom: 1.00E+0" />
-            </StatusBarItem>
-        </StatusBar>
+    <Grid SnapsToDevicePixels="True">
 
         <!-- Mandelbrot Set Image -->
         <Image Name="MandelbrotImage" Stretch="None" Margin="0,0,0,20"/>
-    </DockPanel>
+        <TextBlock Name="FpsLabel"
+               Foreground="CornflowerBlue"
+               FontSize="24"
+               FontWeight="Bold"
+               Background="Transparent"
+               Margin="10"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Top"
+               />
+
+    </Grid>
 
 </Window>
 
