@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ILGPU;
+using ILGPU.Algorithms;
 using ILGPU.Runtime;
 using ILGPU.Runtime.Cuda;
 
@@ -33,7 +34,7 @@ public sealed partial class MainWindow : Window
 
     private WriteableBitmap bitmap;
 
-    private static readonly uint[] Gradient = Palette.GenerateColorLookup();
+    private static readonly uint[] Gradient = Palette.GenerateColorLookup2();
     private readonly uint[] StagingBuffer;
 
     public MainWindow()
@@ -50,8 +51,12 @@ public sealed partial class MainWindow : Window
         RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
 
         // Initialize ILGPU context and accelerator.
-        context = Context.CreateDefault();
-        accelerator = context.CreateCudaAccelerator(0);
+        context = Context.Create(builder =>
+        {
+            builder.Default().EnableAlgorithms(); 
+        });
+
+        accelerator = context.GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
 
         // Load the kernel once during initialization.
         kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, MandelbrotParameters>(MandelbrotKernel.ComputeMandelbrotFrame);

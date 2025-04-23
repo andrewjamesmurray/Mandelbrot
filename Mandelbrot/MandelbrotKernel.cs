@@ -1,4 +1,5 @@
 ﻿using ILGPU;
+using ILGPU.Algorithms;
 
 namespace Mandelbrot;
 
@@ -44,7 +45,7 @@ public static class MandelbrotKernel
             if (++period > 20)
             {
                 if (Math.Abs(zr - prevZr) < PeriodicityLimit && Math.Abs(zi - prevZi) < PeriodicityLimit)
-                    return maxIter;                 
+                    return maxIter;
 
                 prevZr = zr;
                 prevZi = zi;
@@ -69,7 +70,23 @@ public static class MandelbrotKernel
 
         var iterations = Mandelbrot(cr, ci, maxIter);
 
-        var color = iterations < maxIter ? parameters.Gradient[iterations] : BulbColor;
+        uint color;
+        if (iterations < maxIter)
+        {
+            float smooth = iterations;
+            float mag = x * x + y * y;
+            float log_zn = XMath.Log(mag) / 2f;
+            float log2 = XMath.Log(2f);
+            float nu = XMath.Log(log_zn / XMath.Log(2f)) / XMath.Log(2f);
+            smooth += 1 - nu;
+            var normalized = (byte)(smooth/maxIter*255);
+
+            color = parameters.Gradient[normalized];
+        }
+        else
+        {
+            color = BulbColor;
+        }
 
         parameters.Output[index] = color;
     }
