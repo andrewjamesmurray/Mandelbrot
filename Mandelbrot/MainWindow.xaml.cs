@@ -24,7 +24,14 @@ public sealed partial class MainWindow : Window
 
     private Context context;
     private Accelerator accelerator;
-    private Action<Index1D, ArrayView1D<uint, Stride1D.Dense>, ArrayView1D<uint, Stride1D.Dense>, double, double, double, short, short> kernel;
+
+    private Action<Index1D, MandelbrotParameters> kernel;
+
+    private MemoryBuffer1D<uint, Stride1D.Dense> buffer;
+    private MemoryBuffer1D<uint, Stride1D.Dense> gradientBuffer;
+
+    private WriteableBitmap bitmap;
+
     private static readonly uint[] Gradient = Palette.GenerateColorLookup();
 
     public MainWindow()
@@ -36,8 +43,7 @@ public sealed partial class MainWindow : Window
         accelerator = context.GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
 
         // Load the kernel once during initialization.
-        kernel = accelerator.LoadAutoGroupedStreamKernel
-            <Index1D, ArrayView1D<uint, Stride1D.Dense>, ArrayView1D<uint, Stride1D.Dense>, double, double, double, short, short>(MandelbrotKernel.ComputeMandelbrotFrame);
+        kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, MandelbrotParameters>(MandelbrotKernel.ComputeMandelbrotFrame);
 
         gradientBuffer = accelerator.Allocate1D<uint>(Gradient.Length);
         gradientBuffer.CopyFromCPU(Gradient);
@@ -218,10 +224,6 @@ public sealed partial class MainWindow : Window
         context.Dispose();
     }
 
-    private MemoryBuffer1D<uint, Stride1D.Dense> buffer;
-    private WriteableBitmap bitmap;
-    private MemoryBuffer1D<uint, Stride1D.Dense> gradientBuffer;
-
     private void GenerateMandelbrotFrame()
     {
         if (width <= 0 || height <= 0)
@@ -240,7 +242,18 @@ public sealed partial class MainWindow : Window
 
         int pixelCount = width * height;
 
-        kernel(pixelCount, buffer.View, gradientBuffer.View, centerX, centerY, scale, width, height);
+        var p = new MandelbrotParameters
+        { 
+            Output = buffer,
+            Gradient = gradientBuffer.View,
+            CenterX = centerX,
+            CenterY = centerY,
+            Scale = scale,
+            Width = width,
+            Height = height,            
+        };
+
+        kernel(pixelCount, p);
 
         // Retrieve the results from GPU
         var result = buffer.GetAsArray1D();

@@ -5,36 +5,28 @@ namespace Mandelbrot;
 
 public static class MandelbrotKernel
 {
-    public static void ComputeMandelbrotFrame(
-        Index1D index, 
-        ArrayView1D<uint, Stride1D.Dense> output,
-        ArrayView1D<uint, Stride1D.Dense> gradient,
-        double centerX, 
-        double centerY, 
-        double scale, 
-        short width, 
-        short height)
+    public static void ComputeMandelbrotFrame(Index1D index, MandelbrotParameters parameters)
     {
-        int x = index % width;
-        int y = index / width;
+        int x = index % parameters.Width;
+        int y = index / parameters.Width;
 
         // Calculate aspect ratio and scaling factors.
-        double aspectRatio = (double)width / height;
+        double aspectRatio = (double)parameters.Width / parameters.Height;
         double adjustedScaleX, adjustedScaleY;
         if (aspectRatio >= 1.0)
         {
-            adjustedScaleX = scale * aspectRatio;
-            adjustedScaleY = scale;
+            adjustedScaleX = parameters.Scale * aspectRatio;
+            adjustedScaleY = parameters.Scale;
         }
         else
         {
-            adjustedScaleX = scale;
-            adjustedScaleY = scale / aspectRatio;
+            adjustedScaleX = parameters.Scale;
+            adjustedScaleY = parameters.Scale / aspectRatio;
         }
 
         // Calculate the complex coordinate.
-        double real = (x * adjustedScaleX / width) - (adjustedScaleX / 2) + centerX;
-        double imaginary = (y * adjustedScaleY / height) - (adjustedScaleY / 2) + centerY;
+        double real = (x * adjustedScaleX / parameters.Width) - (adjustedScaleX / 2) + parameters.CenterX;
+        double imaginary = (y * adjustedScaleY / parameters.Height) - (adjustedScaleY / 2) + parameters.CenterY;
 
         // Perform Mandelbrot iteration.
         double zx = 0.0, zy = 0.0;
@@ -50,8 +42,8 @@ public static class MandelbrotKernel
             iteration++;
         }
 
-        uint color = (iteration >= maxIter) ? 0 : gradient[iteration];
+        uint color = (iteration >= maxIter) ? 0 : parameters.Gradient[iteration];
 
-        output[index] = color;
+        parameters.Output[index] = color;
     }
 }
