@@ -34,6 +34,7 @@ public sealed partial class MainWindow : Window
     private WriteableBitmap bitmap;
 
     private static readonly uint[] Gradient = Palette.GenerateColorLookup();
+    private readonly uint[] StagingBuffer;
 
     public MainWindow()
     {
@@ -58,7 +59,8 @@ public sealed partial class MainWindow : Window
         gradientBuffer = accelerator.Allocate1D<uint>(Gradient.Length);
         gradientBuffer.CopyFromCPU(Gradient);
 
- 
+        StagingBuffer = new uint[width * height];
+
         // Add event handlers for zooming, panning, and resizing.
         this.MouseWheel += MainWindow_MouseWheel;
         this.MouseRightButtonDown += MainWindow_MouseRightButtonDown;
@@ -259,10 +261,10 @@ public sealed partial class MainWindow : Window
         kernel(pixelCount, p);
 
         // Retrieve the results from GPU
-        var result = buffer.GetAsArray1D();
+        buffer.CopyToCPU(StagingBuffer); 
 
         // Set the Image control source to display the Mandelbrot set.
-        MandelbrotImage.Source = CreateFrameBitmap(result);
+        MandelbrotImage.Source = CreateFrameBitmap(StagingBuffer); // don't reset the bitmap each time
     }
 
     private WriteableBitmap CreateFrameBitmap(uint[] pixels)
