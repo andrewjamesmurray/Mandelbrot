@@ -9,28 +9,30 @@ public static class MandelbrotKernel
 
     private static int Mandelbrot(double cr, double ci, int maxIter)
     {
-        // Pre-iteration Bulb Checking
+        // Period-2 bulb check
         var ci2 = ci * ci;
         var crp = cr + 1;
-        if (crp * crp + ci2 < 1.0 / 16.0)
+        if (crp * crp + ci2 < 0.0625) // 1/16
             return maxIter;
 
-        // Main cardioid
+        // Main cardioid bulb check
         var crm = cr - 0.25;
         var q = crm * crm + ci2;
         if (q * (q + crm) < 0.25 * ci2)
             return maxIter;
 
         double zr = 0.0, zi = 0.0;
-        int iter = 0, period = 0;
-        double prevZr = 0, prevZi = 0;
+        double prevZr = 0.0, prevZi = 0.0;
+        int period = 0;
+        int iter = 0;
 
         while (iter < maxIter)
         {
             var zr2 = zr * zr;
             var zi2 = zi * zi;
 
-            if ((zr2 + zi2) > 4.0) break;
+            if ((zr2 + zi2) > 4.0) 
+                break;
 
             var temp = zr2 - zi2 + cr;
             zi = 2.0 * zr * zi + ci;
