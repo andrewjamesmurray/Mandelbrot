@@ -236,6 +236,14 @@ public sealed partial class MainWindow : Window
         context.Dispose();
     }
 
+    private static int ComputeMaxIter(double scale)
+    {
+        // Heuristic based on the inverse of zoom scale
+        // Logarithmic boost keeps growth manageable at deep zooms
+        double zoom = 1.0 / scale;
+        return (int)(200 + 50 * Math.Log10(zoom));
+    }
+
     private void GenerateMandelbrotFrame()
     {
         if (width <= 0 || height <= 0)
@@ -270,7 +278,8 @@ public sealed partial class MainWindow : Window
             AdjustedScaleXPerPixel = adjustedScaleX / width,    
             AdjustedScaleYPerPixel = adjustedScaleY / height,   
             OffsetX = -(adjustedScaleX / 2) + centerX,
-            OffsetY = -(adjustedScaleY / 2) + centerY
+            OffsetY = -(adjustedScaleY / 2) + centerY,
+            maxIter = ComputeMaxIter(scale)
         };
 
         kernel(pixelCount, parameters);

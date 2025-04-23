@@ -18,4 +18,5 @@ public struct MandelbrotParameters
 
     public double OffsetX { get; set; }
     public double OffsetY { get; set; }
+    public int maxIter { get; set; }
 }

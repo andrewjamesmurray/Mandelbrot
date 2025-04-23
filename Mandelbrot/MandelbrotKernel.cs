@@ -66,7 +66,7 @@ public static class MandelbrotKernel
         var cr = (x * parameters.AdjustedScaleXPerPixel) + parameters.OffsetX;
         var ci = (y * parameters.AdjustedScaleYPerPixel) + parameters.OffsetY;
 
-        const int maxIter = MandelbrotConstants.MaxIterations;
+        var maxIter = parameters.maxIter;
 
         var iterations = Mandelbrot(cr, ci, maxIter);
 
