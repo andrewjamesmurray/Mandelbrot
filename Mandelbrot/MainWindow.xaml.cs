@@ -138,6 +138,9 @@ public sealed partial class MainWindow : Window
                 _fractalState.DecreaseMaxIter();
                 GenerateMandelbrotFrame();
                 break;
+
+            case Key.Enter:
+                break;
         }
     }
 
@@ -172,7 +175,7 @@ public sealed partial class MainWindow : Window
         var sw = new Stopwatch();
         sw.Start();
 
-        var parameters = _fractalState.GenerateParameters(_gpu);
+        var parameters = _fractalState.GenerateParameters();
 
         _gpu.Kernel(parameters, StagingBuffer);
 

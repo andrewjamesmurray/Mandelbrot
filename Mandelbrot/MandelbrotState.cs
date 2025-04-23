@@ -8,6 +8,8 @@ public class MandelbrotState
 
     private double _centerX;
     private double _centerY;
+    private double _adjustedScaleX;
+    private double _adjustedScaleY;
     private double _scale;
     private int _maxIter;
 
@@ -25,12 +27,30 @@ public class MandelbrotState
         Reset();
     }
 
+    private void SetScale(double newValue)
+    {
+        _scale = newValue;
+
+        if (_aspectRatio >= 1.0)
+        {
+            _adjustedScaleX = _scale * _aspectRatio;
+            _adjustedScaleY = _scale;
+        }
+        else
+        {
+            _adjustedScaleX = _scale;
+            _adjustedScaleY = _scale / _aspectRatio;
+        }
+
+        _maxIter = ComputeMaxIter(_scale);
+    }
+
     public void Reset()
     {
         _centerX = -0.74;
         _centerY = 0.15;
-        _scale = 2.5;
-        _maxIter = 150;
+
+        SetScale(2.5);
     }
 
     /// <summary>
@@ -70,8 +90,7 @@ public class MandelbrotState
         if (_scale < 1e-13)
             return false;
 
-        _scale *= zoomFactorIncrement;
-        _maxIter = ComputeMaxIter(_scale);
+        SetScale(_scale * zoomFactorIncrement);
 
         return true;
     }
@@ -84,13 +103,12 @@ public class MandelbrotState
 
         // Adjust scale based on the scroll direction
         var scaleMultiplier = zoomDelta > 0 ? zoomFactorIncrement : 1 - (zoomFactorIncrement - 1);
-        _scale *= scaleMultiplier;
+
+        SetScale(_scale * scaleMultiplier);
 
         // Adjust the center point based on the normalized mouse position.
         _centerX -= normX * (1 - _scale / (_scale * scaleMultiplier));
         _centerY -= normY * (1 - _scale / (_scale * scaleMultiplier));
-
-        _maxIter = ComputeMaxIter(_scale);
     }
 
     public void IncreaseMaxIter()
@@ -103,22 +121,8 @@ public class MandelbrotState
         _maxIter = Math.Max(_maxIter - 50, 50);
     }
 
-    public MandelbrotParameters GenerateParameters(GpuAdapter _gpu)
+    public MandelbrotParameters GenerateParameters()
     {
-        var adjustedScaleX = _scale;
-        var adjustedScaleY = _scale;
-
-        if (_aspectRatio >= 1.0)
-        {
-            adjustedScaleX = _scale * _aspectRatio;
-            adjustedScaleY = _scale;
-        }
-        else
-        {
-            adjustedScaleX = _scale;
-            adjustedScaleY = _scale / _aspectRatio;
-        }
-
         return new MandelbrotParameters
         {
             CenterX = _centerX,
@@ -126,13 +130,11 @@ public class MandelbrotState
             Scale = _scale,
             Width = _width,
             Height = _height,
-            AdjustedScaleXPerPixel = adjustedScaleX / _width,
-            AdjustedScaleYPerPixel = adjustedScaleY / _height,
-            OffsetX = -(adjustedScaleX / 2) + _centerX,
-            OffsetY = -(adjustedScaleY / 2) + _centerY,
+            AdjustedScaleXPerPixel = _adjustedScaleX / _width,
+            AdjustedScaleYPerPixel = _adjustedScaleY / _height,
+            OffsetX = -(_adjustedScaleX / 2) + _centerX,
+            OffsetY = -(_adjustedScaleY / 2) + _centerY,
             maxIter = _maxIter
         };
     }
-
-
 }

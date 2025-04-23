@@ -5,6 +5,7 @@
         
         WindowStyle="None"
         WindowState="Maximized"
+        ResizeMode="NoResize"
         Width="2560" 
         Height="1080">
     
