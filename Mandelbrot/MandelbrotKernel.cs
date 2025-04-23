@@ -4,17 +4,21 @@ namespace Mandelbrot;
 
 public static class MandelbrotKernel
 {
-    public const uint BulbColor = 0xFF000000;
+    const uint BulbColor = 0xFF000000;
+    const double PeriodicityLimit = 1e-24;
 
     private static int Mandelbrot(double cr, double ci, int maxIter)
     {
         // Pre-iteration Bulb Checking
-        if ((cr + 1) * (cr + 1) + ci * ci < 1.0 / 16.0)
+        double ci2 = ci * ci;
+        var crp = cr + 1;
+        if (crp * crp + ci2 < 1.0 / 16.0)
             return maxIter;
 
         // Main cardioid
-        double q = (cr - 0.25) * (cr - 0.25) + ci * ci;
-        if (q * (q + (cr - 0.25)) < 0.25 * ci * ci)
+        var crm = cr - 0.25;
+        double q = crm * crm + ci2;
+        if (q * (q + crm) < 0.25 * ci2)
             return maxIter;
 
         double zr = 0.0, zi = 0.0;
@@ -35,12 +39,10 @@ public static class MandelbrotKernel
             iterations++;
 
             // Periodicity Checking optimization
-            if (++period > 10)
+            if (++period > 20)
             {
-                if (Math.Abs(zr - prevZr) < (double)1e-24 && Math.Abs(zi - prevZi) < (double)1e-24)
-                {
+                if (Math.Abs(zr - prevZr) < PeriodicityLimit && Math.Abs(zi - prevZi) < PeriodicityLimit)
                     return maxIter;                 
-                }
 
                 prevZr = zr;
                 prevZi = zi;
