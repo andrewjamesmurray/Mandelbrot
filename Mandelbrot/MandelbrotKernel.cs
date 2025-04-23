@@ -80,7 +80,7 @@ public static class MandelbrotKernel
             var smooth = iterations + 1 - nu;
             var normalized = (byte)(smooth / maxIter * Palette.NumShades);
 
-            color = parameters.Gradient[normalized];
+            color = parameters.Palette[normalized];
         }
         else
         {

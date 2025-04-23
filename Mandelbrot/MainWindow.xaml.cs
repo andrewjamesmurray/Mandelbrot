@@ -4,8 +4,6 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using ILGPU;
-using ILGPU.Runtime;
 
 namespace Mandelbrot;
 
@@ -18,23 +16,15 @@ public sealed partial class MainWindow : Window
     private double centerY = 0.15;
     private double scale = 2.5;
     private int maxIter = 50;
-
+    private double aspectRatio = 1.25;
     private bool isPanning = false;
     private bool isZooming = false;
     private Point startPanPoint;
-
-    private Context context;
-    private Accelerator accelerator;
-
-    private Action<Index1D, MandelbrotParameters> kernel;
-
-    private MemoryBuffer1D<uint, Stride1D.Dense> buffer;
-    private MemoryBuffer1D<uint, Stride1D.Dense> gradientBuffer;
-
     private WriteableBitmap bitmap;
     private float fps = 0f;
-    private static readonly uint[] Gradient = Palette.GenerateColorLookup();
     private readonly uint[] StagingBuffer;
+
+    private readonly GpuAdapter _gpu;
 
     public MainWindow()
     {
@@ -45,24 +35,14 @@ public sealed partial class MainWindow : Window
 
         this.Width = width;
         this.Height = height;
+        this.aspectRatio = (double)width / height;
 
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.Fant);
         RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
 
-        // Initialize ILGPU context and accelerator.
-        context = Context.Create(builder =>
-        {
-            builder.Default().EnableAlgorithms(); 
-        });
-
-        accelerator = context.GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
+        _gpu = GpuAdapter.Create(width, height, Palette.GenerateColorLookup2());
 
         // Load the kernel once during initialization.
-        kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, MandelbrotParameters>(MandelbrotKernel.ComputeMandelbrotFrame);
-
-        gradientBuffer = accelerator.Allocate1D<uint>(Gradient.Length);
-        gradientBuffer.CopyFromCPU(Gradient);
-
         StagingBuffer = new uint[width * height];
 
         // Add event handlers for zooming, panning, and resizing.
@@ -71,11 +51,12 @@ public sealed partial class MainWindow : Window
         this.MouseLeftButtonDown += MainWindow_MouseLeftButtonDown;
         this.MouseLeftButtonUp += MainWindow_MouseLeftButtonUp;
         this.MouseMove += MainWindow_MouseMove;
-        //this.SizeChanged += MainWindow_SizeChanged;
         this.KeyDown += KeyUpHandler;
 
-        ReallocateBuffer();
-        accelerator.Synchronize();
+        bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
+        MandelbrotImage.Source = bitmap;
+
+        _gpu.Synchronize();
 
         // Generate the initial Mandelbrot set.
         GenerateMandelbrotFrame();
@@ -88,30 +69,6 @@ public sealed partial class MainWindow : Window
         centerX = -0.5;
         centerY = 0.0;
         scale = 3.5;
-
-        // Regenerate the Mandelbrot set with the updated dimensions.
-        GenerateMandelbrotFrame();
-    }
-
-    // To be called whenever width or height are initialized or changed
-    private void ReallocateBuffer()
-    {
-        if (height == 0 || width == 0) return;
-
-        if (buffer != null) buffer.Dispose();
-
-        buffer = accelerator.Allocate1D<uint>(width * height);
-        bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
-        MandelbrotImage.Source = bitmap;
-    }
-
-    private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        // Update the width and height based on the new window size.
-        width = (short)e.NewSize.Width;
-        height = (short)e.NewSize.Height;
-
-        ReallocateBuffer();
 
         // Regenerate the Mandelbrot set with the updated dimensions.
         GenerateMandelbrotFrame();
@@ -201,7 +158,6 @@ public sealed partial class MainWindow : Window
                 GenerateMandelbrotFrame();
                 break;
         }
-
     }
 
     private void UpdateTextOverlay()
@@ -246,12 +202,10 @@ public sealed partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        if (buffer != null) buffer.Dispose();
+        _gpu.Dispose();
 
         // Cleanup resources on window close.
         base.OnClosed(e);
-        accelerator.Dispose();
-        context.Dispose();
     }
 
     private static int ComputeMaxIter(double scale)
@@ -272,10 +226,6 @@ public sealed partial class MainWindow : Window
         var sw = new Stopwatch();
         sw.Start();
 
-        if (width <= 0 || height <= 0)
-            return; 
-
-        var aspectRatio = (double)width / height; // move to startup
         var adjustedScaleX = scale;
         var adjustedScaleY = scale;
 
@@ -290,12 +240,10 @@ public sealed partial class MainWindow : Window
             adjustedScaleY = scale / aspectRatio;
         }
 
-        var pixelCount = width * height;
-
         var parameters = new MandelbrotParameters
         { 
-            Output = buffer,
-            Gradient = gradientBuffer.View,
+            Output = _gpu.OutputBufferView,
+            Palette = _gpu.PaletteView,
             CenterX = centerX,
             CenterY = centerY,
             Scale = scale,
@@ -308,10 +256,7 @@ public sealed partial class MainWindow : Window
             maxIter = maxIter
         };
 
-        kernel(pixelCount, parameters);
-
-        // Retrieve the results from GPU
-        buffer.CopyToCPU(StagingBuffer); 
+        _gpu.Kernel(parameters, StagingBuffer);
 
         CreateFrameBitmap(StagingBuffer);
 
