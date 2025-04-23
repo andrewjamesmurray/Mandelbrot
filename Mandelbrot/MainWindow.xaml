@@ -9,7 +9,7 @@
         Width="2560" 
         Height="1080">
     
-    <Grid SnapsToDevicePixels="True">
+    <Grid>
         <Image Name="MandelbrotImage" Stretch="Fill" Margin="0,0,0,0" />
 
         <TextBlock Name="FpsLabel"

@@ -62,8 +62,8 @@ public class MandelbrotState
         //_centerX = -0.74335165531181;
         //_centerY = +0.13138323820835;
 
-        _centerX = -0.73842101229341928;
-        _centerY = 0.1832356822787915;
+        _centerX = -1.0277596692518;
+        _centerY = 0.36228023011202576;
     }
 
     public void Move(double deltaX, double deltaY)
@@ -82,12 +82,12 @@ public class MandelbrotState
         double safeLog = Math.Log10(Math.Max(zoom, 1.0));
 
         // Grow iteration count smoothly with zoom depth
-        return (int)(100 * scale + 250 * Math.Pow(safeLog, 1.5));
+        return (int)Math.Max(150, (60 * scale + 250 * Math.Pow(safeLog, 1.6)));
     }
 
     public bool ZoomNext()
     {
-        if (_scale < 1e-13)
+        if (_scale < 1e-12) // With 64-bit doubles, quality degrades too much beyond this
             return false;
 
         SetScale(_scale * zoomFactorIncrement);
