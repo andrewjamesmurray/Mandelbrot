@@ -64,7 +64,7 @@ public class MandelbrotState
         _centerX = -1.2535516388693015;
         _centerY = 0.37899272530660111;
 
-        SetScale(5.5);
+        SetScale(3.5);
     }
 
     public void Move(double deltaX, double deltaY)

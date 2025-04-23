@@ -19,7 +19,8 @@ public sealed partial class MainWindow : Window
     private bool isZooming = false;
     private bool isPanning = false;
     private Point startPanPoint;
-    private float fps = 0f;
+    private int renderMs = 0;
+    //private float fps = 0f;
 
     public MainWindow()
     {
@@ -148,26 +149,31 @@ public sealed partial class MainWindow : Window
 
     private void UpdateTextOverlay()
     {
-        var fpsText =   "fps:     " + fps.ToString("0");
-        var iterText =  "maxIter: " + _fractalState.MaxIter;
-        var scaleText = "scale:   " + _fractalState.Scale.ToString("E");
+        var fps = 1000 / renderMs;
 
-        FpsLabel.Text = fpsText + "\n" + iterText + "\n" + scaleText;
+        var fpsText    = "fps:     " + fps.ToString("0");
+        var renderText = "render:  " + renderMs.ToString("0") + " ms";
+        var iterText   = "maxIter: " + _fractalState.MaxIter;
+        var scaleText  = "scale:   " + _fractalState.Scale.ToString("E");
+
+        FpsLabel.Text = 
+            fpsText + "\n" + 
+            renderText + "\n" +
+            iterText + "\n" + 
+            scaleText + "\n";
     }
-
-    const int TargetFps = 120;
 
     private async void StartAutoZoom()
     {
-        _fractalState.ResetForZoom();
+        const int TargetFps = 120;
+        const float TargetDelay = 1000f / TargetFps;
 
-        float targetDelay = 1000f / TargetFps;
+        _fractalState.ResetForZoom();
 
         while (isZooming && _fractalState.ZoomNext())
         {
             GenerateMandelbrotFrame();            
 
-            float delay = (fps > targetDelay) ? 1f : (targetDelay - fps);
             await Task.Delay((int)delay);
         }
     }
@@ -193,7 +199,7 @@ public sealed partial class MainWindow : Window
 
         sw.Stop();
 
-        fps = (float)(1000 / sw.Elapsed.TotalMilliseconds);
+        renderMs = (int)sw.Elapsed.TotalMilliseconds;
         UpdateTextOverlay();
     }
 
