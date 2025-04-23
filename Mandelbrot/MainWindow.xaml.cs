@@ -56,8 +56,8 @@ public sealed partial class MainWindow : Window
         this.MouseLeftButtonDown += MainWindow_MouseLeftButtonDown;
         this.MouseLeftButtonUp += MainWindow_MouseLeftButtonUp;
         this.MouseMove += MainWindow_MouseMove;
-        this.SizeChanged += MainWindow_SizeChanged;
-        this.KeyDown += MainWindow_KeyDown;
+        //this.SizeChanged += MainWindow_SizeChanged;
+        this.KeyDown += KeyUpHandler;
 
         ReallocateBuffer();
         accelerator.Synchronize();
@@ -157,7 +157,7 @@ public sealed partial class MainWindow : Window
         GenerateMandelbrotFrame();
     }
 
-    private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+    private void KeyUpHandler(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Space)
         {
@@ -170,6 +170,11 @@ public sealed partial class MainWindow : Window
             {
                 isZooming = false;
             }
+        }
+        else if (e.Key == Key.Escape)
+        {
+            Close();
+            Environment.Exit(0);
         }
     }
 
