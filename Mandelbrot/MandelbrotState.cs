@@ -53,17 +53,18 @@ public class MandelbrotState
         SetScale(2.5);
     }
 
+    const double ZoomTargetX = -1.2535516388693015;
+    const double ZoomTargetY = 0.37899272530660111;
+
     /// <summary>
     /// Reset to a point of interest
     /// </summary>
     public void ResetForZoom()
     {
-        // original
-        //_centerX = -0.74335165531181;
-        //_centerY = +0.13138323820835;
+        _centerX = -1.2535516388693015;
+        _centerY = 0.37899272530660111;
 
-        _centerX = -1.0277596692518;
-        _centerY = 0.36228023011202576;
+        SetScale(5.5);
     }
 
     public void Move(double deltaX, double deltaY)
@@ -76,10 +77,10 @@ public class MandelbrotState
     {
         // Heuristic based on the inverse of zoom scale
         // Logarithmic boost keeps growth manageable at deep zooms
-        double zoom = 1.0 / Math.Max(scale, 1e-13);
+        double zoom = Math.Max(1.0, 1 / Math.Max(scale, 1e-13)); // Much lower and it can return a negative number
 
         // Instead of log(zoom), use log(max(zoom, 1)) so log never goes negative
-        double safeLog = Math.Log10(Math.Max(zoom, 1.0));
+        double safeLog = Math.Log10(zoom);
 
         // Grow iteration count smoothly with zoom depth
         return (int)Math.Max(150, (60 * scale + 250 * Math.Pow(safeLog, 1.6)));
