@@ -264,8 +264,8 @@ public sealed partial class MainWindow : Window
             Height = height,            
             AdjustedScaleXPerPixel = adjustedScaleX / width,    
             AdjustedScaleYPerPixel = adjustedScaleY / height,   
-            HalfAdjustedScaleX = adjustedScaleX / 2,            
-            HalfAdjustedScaleY = adjustedScaleY / 2,            
+            OffsetX = -(adjustedScaleX / 2) + centerX,
+            OffsetY = -(adjustedScaleY / 2) + centerY
         };
 
         kernel(pixelCount, parameters);

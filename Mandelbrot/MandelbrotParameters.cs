@@ -16,6 +16,6 @@ public struct MandelbrotParameters
     public double AdjustedScaleXPerPixel { get; set; }
     public double AdjustedScaleYPerPixel { get; set; }
 
-    public double HalfAdjustedScaleX { get; set; }
-    public double HalfAdjustedScaleY { get; set; }
+    public double OffsetX { get; set; }
+    public double OffsetY { get; set; }
 }
