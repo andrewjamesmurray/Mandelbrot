@@ -141,6 +141,9 @@ public sealed partial class MainWindow : Window
                 break;
 
             case Key.Enter:
+                Clipboard.SetText(
+                    "_centerX = " + _fractalState.CenterX + ";\n" +
+                    "_centerY = " + _fractalState.CenterY + ";\n");
                 break;
         }
     }
