@@ -40,8 +40,8 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         // Initialize ILGPU context and accelerator.
-        context = Context.Create(builder => builder.Cuda());
-        accelerator = context.GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
+        context = Context.CreateDefault();
+        accelerator = context.CreateCudaAccelerator(0);
 
         // Load the kernel once during initialization.
         kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, MandelbrotParameters>(MandelbrotKernel.ComputeMandelbrotFrame);
