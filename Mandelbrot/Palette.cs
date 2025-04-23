@@ -74,10 +74,10 @@ public static class Palette
             var t = Math.Max(0.0, Math.Min(1.0, (double)gradient / NumShades));
 
             // Define Viridis color stops (RGB in 0–255)
-            int n = viridis.Length - 1;
-            double scaledT = t * n;
-            int i = (int)scaledT;
-            double frac = scaledT - i;
+            var n = viridis.Length - 1;
+            var scaledT = t * n;
+            var i = (int)scaledT;
+            var frac = scaledT - i;
 
             if (i >= n)
             {
@@ -85,13 +85,13 @@ public static class Palette
                 results[gradient] = ARGBToUInt(0xFF, v.R, v.G, v.B);
             }
 
-            Color c1 = viridis[i];
-            Color c2 = viridis[i + 1];
+            var c1 = viridis[i];
+            var c2 = viridis[i + 1];
 
-            byte r = (byte)(c1.R + (c2.R - c1.R) * frac);
-            byte g = (byte)(c1.G + (c2.G - c1.G) * frac);
-            byte b = (byte)(c1.B + (c2.B - c1.B) * frac);
-            byte a = 0xFF;
+            var r = (byte)(c1.R + (c2.R - c1.R) * frac);
+            var g = (byte)(c1.G + (c2.G - c1.G) * frac);
+            var b = (byte)(c1.B + (c2.B - c1.B) * frac);
+            var a = (byte)0xFF;
 
             results[gradient] = ARGBToUInt(a, r, g, b);
         }

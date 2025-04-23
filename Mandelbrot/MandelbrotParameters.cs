@@ -5,8 +5,6 @@ namespace Mandelbrot;
 
 public struct MandelbrotParameters
 {
-    public ArrayView1D<uint, Stride1D.Dense> Output { get; set; }
-    public ArrayView1D<uint, Stride1D.Dense> Palette { get; set; }
     public double CenterX { get; set; }
     public double CenterY { get; set; }
     public double Scale { get; set; }

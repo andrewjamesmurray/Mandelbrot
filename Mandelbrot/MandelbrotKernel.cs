@@ -58,7 +58,7 @@ public static class MandelbrotKernel
         return iter;
     }
 
-    public static void ComputeMandelbrotFrame(Index1D index, MandelbrotParameters parameters)
+    public static void ComputeMandelbrotFrame(Index1D index, MandelbrotParameters parameters, BufferParameters bufferParameters)
     {
         int x = index % parameters.Width;
         int y = index / parameters.Width;
@@ -80,13 +80,13 @@ public static class MandelbrotKernel
             var smooth = iterations + 1 - nu;
             var normalized = (byte)(smooth / maxIter * Palette.NumShades);
 
-            color = parameters.Palette[normalized];
+            color = bufferParameters.Palette[normalized];
         }
         else
         {
             color = BulbColor;
         }
 
-        parameters.Output[index] = color;
+        bufferParameters.Output[index] = color;
     }
 }

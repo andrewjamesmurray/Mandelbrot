@@ -9,17 +9,14 @@ public sealed class GpuAdapter : IDisposable
     private readonly Accelerator _accelerator;
     private readonly MemoryBuffer1D<uint, Stride1D.Dense> _outputBuffer;
     private readonly MemoryBuffer1D<uint, Stride1D.Dense> _paletteCache;
-    private readonly Action<Index1D, MandelbrotParameters> _kernel;
-
-    public ArrayView1D<uint, Stride1D.Dense> PaletteView => _paletteCache.View;
-    public ArrayView1D<uint, Stride1D.Dense> OutputBufferView => _outputBuffer.View;
-
+    private readonly Action<Index1D, MandelbrotParameters, BufferParameters> _kernel;
     private readonly Index1D _pixelIndex;
+    private readonly BufferParameters _bufferParameters;
 
     internal GpuAdapter(
         Context context, 
         Accelerator accelerator, 
-        Action<Index1D, MandelbrotParameters> kernel,
+        Action<Index1D, MandelbrotParameters, BufferParameters> kernel,
         MemoryBuffer1D<uint, Stride1D.Dense> outputBuffer,
         MemoryBuffer1D<uint, Stride1D.Dense> gradientBuffer,
         short width,
@@ -30,8 +27,9 @@ public sealed class GpuAdapter : IDisposable
         _kernel = kernel;
         _outputBuffer = outputBuffer;
         _paletteCache = gradientBuffer;
-
         _pixelIndex = width * height;
+
+        _bufferParameters = new BufferParameters(_outputBuffer.View, _paletteCache.View);
     }
 
     public static GpuAdapter Create(short width, short height, uint[] palette)
@@ -44,7 +42,8 @@ public sealed class GpuAdapter : IDisposable
         var accelerator = context.GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
 
         // Load the kernel once during initialization.
-        var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, MandelbrotParameters>(MandelbrotKernel.ComputeMandelbrotFrame);
+        var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, MandelbrotParameters, BufferParameters>(
+            MandelbrotKernel.ComputeMandelbrotFrame);
 
         var paletteCache = accelerator.Allocate1D<uint>(palette.Length);
         paletteCache.CopyFromCPU(palette);
@@ -54,9 +53,9 @@ public sealed class GpuAdapter : IDisposable
         return new GpuAdapter(context, accelerator, kernel, buffer, paletteCache, width, height);
     }
 
-    public void Kernel(MandelbrotParameters parameters, uint[] outputBuffer)
+    public void Kernel(MandelbrotParameters mandelbrotParameters, uint[] outputBuffer)
     {
-        _kernel(_pixelIndex, parameters);
+        _kernel(_pixelIndex, mandelbrotParameters, _bufferParameters);
         _outputBuffer.CopyToCPU(outputBuffer);
     }
 
