@@ -1,4 +1,5 @@
-﻿using System.Windows.Media;
+﻿using System.Drawing;
+using System.Windows.Media;
 
 namespace Mandelbrot;
 
@@ -10,37 +11,42 @@ public static class Palette
 
         for (var i = 0; i <= MandelbrotConstants.MaxIterations; i++)
         {
-            var hsv = (double)i / MandelbrotConstants.MaxIterations * 360.0;
-            var color = ColorFromHSV(hsv);
-            var color32 = (uint)(color.A << 24 | color.R << 16 | color.G << 8 | color.B);
-            results[i] = color32;
+            var intensity = (double)i / MandelbrotConstants.MaxIterations;
+            results[i] = ColorFromIntensity(intensity);
         }
 
         return results;
     }
 
-    private static Color ColorFromHSV(double hue)
+    private static uint ARGBToUInt(byte alpha, byte r, byte g, byte b)
     {
-        sbyte hi = Convert.ToSByte(Math.Floor(hue / 60) % 6);
-        double f = hue / 60 - Math.Floor(hue / 60);
+        return (uint)(alpha << 24 | r << 16 | g << 8 | b);
+    }
 
-        byte q = Convert.ToByte(255 * (1 - f));
-        byte t = Convert.ToByte(255 * (1 - (1 - f)));
+    private static uint ColorFromIntensity(double hue)
+    {
+        var hue6 = hue * 6.0;
+        var intHue6 = Math.Floor(hue6);
+        var f = hue6 - intHue6; // fraction part only
 
-        const byte v = 255;
-        const byte p = 0;
+        byte q = (byte)(255 * (1 - f));
+        byte t = (byte)(255 * f);
 
-        if (hi == 0)
-            return Color.FromArgb(255, v, t, p);
-        else if (hi == 1)
-            return Color.FromArgb(255, q, v, p);
-        else if (hi == 2)
-            return Color.FromArgb(255, p, v, t);
-        else if (hi == 3)
-            return Color.FromArgb(255, p, q, v);
-        else if (hi == 4)
-            return Color.FromArgb(255, t, p, v);
-        else
-            return Color.FromArgb(255, v, p, q);
+        var segment = intHue6 % 6;
+        switch (segment)
+        {
+            case 0:
+                return ARGBToUInt(0xFF, 0xFF, t, 0);
+            case 1:
+                return ARGBToUInt(0xFF, q, 0xFF, 0);
+            case 2:
+                return ARGBToUInt(0xFF, 0, 0xFF, t);
+            case 3:
+                return ARGBToUInt(0xFF, 0, q, 0xFF);
+            case 4:
+                return ARGBToUInt(0xFF, t, 0, 0xFF);
+            default:
+                return ARGBToUInt(0xFF, 0xFF, 0, q);
+        }
     }
 }
