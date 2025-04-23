@@ -4,25 +4,21 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Media.Media3D;
 
 namespace Mandelbrot;
 
 public sealed partial class MainWindow : Window
 {
-    private short width;
-    private short height;
-
-    private bool isPanning = false;
-    private bool isZooming = false;
-    private Point startPanPoint;
-    private WriteableBitmap bitmap;
-    private float fps = 0f;
-    private readonly uint[] StagingBuffer;
-
     private readonly GpuAdapter _gpu;
     private readonly MandelbrotState _fractalState;
+    private readonly WriteableBitmap bitmap;
+    private readonly uint[] StagingBuffer;
     private readonly Int32Rect _rectangle;
+
+    private bool isZooming = false;
+    private bool isPanning = false;
+    private Point startPanPoint;
+    private float fps = 0f;
 
     public MainWindow()
     {

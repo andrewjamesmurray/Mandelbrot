@@ -27,8 +27,8 @@ public sealed class GpuAdapter : IDisposable
         _kernel = kernel;
         _outputBuffer = outputBuffer;
         _paletteCache = gradientBuffer;
-        _pixelIndex = width * height;
 
+        _pixelIndex = width * height;
         _bufferParameters = new BufferParameters(_outputBuffer.View, _paletteCache.View);
     }
 
@@ -40,10 +40,7 @@ public sealed class GpuAdapter : IDisposable
         });
 
         var accelerator = context.GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
-
-        // Load the kernel once during initialization.
-        var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, MandelbrotParameters, BufferParameters>(
-            MandelbrotKernel.ComputeMandelbrotFrame);
+        var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, MandelbrotParameters, BufferParameters>(MandelbrotKernel.ComputeMandelbrotFrame);
 
         var paletteCache = accelerator.Allocate1D<uint>(palette.Length);
         paletteCache.CopyFromCPU(palette);

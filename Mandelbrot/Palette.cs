@@ -12,7 +12,7 @@ public static class Palette
 
     public static uint[] GenerateColorLookup()
     {
-        uint ColorFromIntensity(double hue)
+        static uint ColorFromIntensity(double hue)
         {
             var hue6 = hue * 6.0;
             var intHue6 = Math.Floor(hue6);
