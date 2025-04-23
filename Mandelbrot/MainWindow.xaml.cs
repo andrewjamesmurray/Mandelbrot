@@ -5,9 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ILGPU;
-using ILGPU.Algorithms;
 using ILGPU.Runtime;
-using ILGPU.Runtime.Cuda;
 
 namespace Mandelbrot;
 
@@ -19,6 +17,7 @@ public sealed partial class MainWindow : Window
     private double centerX = -0.74;
     private double centerY = 0.15;
     private double scale = 2.5;
+    private int maxIter = 50;
 
     private bool isPanning = false;
     private bool isZooming = false;
@@ -33,8 +32,8 @@ public sealed partial class MainWindow : Window
     private MemoryBuffer1D<uint, Stride1D.Dense> gradientBuffer;
 
     private WriteableBitmap bitmap;
-
-    private static readonly uint[] Gradient = Palette.GenerateColorLookup2();
+    private float fps = 0f;
+    private static readonly uint[] Gradient = Palette.GenerateColorLookup();
     private readonly uint[] StagingBuffer;
 
     public MainWindow()
@@ -103,6 +102,7 @@ public sealed partial class MainWindow : Window
 
         buffer = accelerator.Allocate1D<uint>(width * height);
         bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
+        MandelbrotImage.Source = bitmap;
     }
 
     private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -175,23 +175,42 @@ public sealed partial class MainWindow : Window
 
     private void KeyUpHandler(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Space)
+        switch (e.Key)
         {
-            if (!isZooming)
-            {
-                isZooming = true;
-                StartAutoZoom();
-            }
-            else
-            {
-                isZooming = false;
-            }
+            case Key.Space:
+                if (!isZooming)
+                {
+                    isZooming = true;
+                    StartAutoZoom();
+                }
+                else
+                {
+                    isZooming = false;
+                }
+                break;
+            case Key.Escape:
+                Close();
+                Environment.Exit(0);
+                break;
+            case Key.Up:
+                maxIter += 50;
+                GenerateMandelbrotFrame();
+                break;
+            case Key.Down:
+                maxIter = Math.Max(maxIter - 50, 0);
+                GenerateMandelbrotFrame();
+                break;
         }
-        else if (e.Key == Key.Escape)
-        {
-            Close();
-            Environment.Exit(0);
-        }
+
+    }
+
+    private void UpdateTextOverlay()
+    {
+        var fpsText = fps.ToString("0") + " fps";
+        var scaleText = "scale: " + scale.ToString("E");
+        var iterText = "maxIter: " + maxIter;
+
+        FpsLabel.Text = fpsText + ", " + iterText + ", " + scaleText;
     }
 
     private async void StartAutoZoom()
@@ -201,7 +220,7 @@ public sealed partial class MainWindow : Window
         centerY = +0.13138323820835;
 
         // Zoom speed multiplier.
-        const double zoomFactorIncrement = 0.95;
+        const double zoomFactorIncrement = 0.975;
 
         var sw = new Stopwatch();
         sw.Start();
@@ -211,11 +230,10 @@ public sealed partial class MainWindow : Window
         {
             // Reduce the zoom scale.
             scale *= zoomFactorIncrement;
+            maxIter = ComputeMaxIter(scale);
 
             // Render the Mandelbrot set at the new zoom level.
             GenerateMandelbrotFrame();
-
-            FpsLabel.Text = (frames / sw.Elapsed.TotalMilliseconds * 1000).ToString("0") + " fps";
 
             // Allow the UI to update by awaiting a small delay ensuring UI responsiveness.
             await Task.Delay(1);
@@ -240,12 +258,20 @@ public sealed partial class MainWindow : Window
     {
         // Heuristic based on the inverse of zoom scale
         // Logarithmic boost keeps growth manageable at deep zooms
-        double zoom = 1.0 / scale;
-        return (int)(200 + 50 * Math.Log10(zoom));
+        double zoom = 1.0 / Math.Max(scale, 1e-13);
+
+        // Instead of log(zoom), use log(max(zoom, 1)) so log never goes negative
+        double safeLog = Math.Log10(Math.Max(zoom, 1.0));
+
+        // Grow iteration count smoothly with zoom depth
+        return (int)(50 + 200 * Math.Pow(safeLog, 2));
     }
 
     private void GenerateMandelbrotFrame()
     {
+        var sw = new Stopwatch();
+        sw.Start();
+
         if (width <= 0 || height <= 0)
             return; 
 
@@ -279,7 +305,7 @@ public sealed partial class MainWindow : Window
             AdjustedScaleYPerPixel = adjustedScaleY / height,   
             OffsetX = -(adjustedScaleX / 2) + centerX,
             OffsetY = -(adjustedScaleY / 2) + centerY,
-            maxIter = ComputeMaxIter(scale)
+            maxIter = maxIter
         };
 
         kernel(pixelCount, parameters);
@@ -287,8 +313,11 @@ public sealed partial class MainWindow : Window
         // Retrieve the results from GPU
         buffer.CopyToCPU(StagingBuffer); 
 
-        // Set the Image control source to display the Mandelbrot set.
-        MandelbrotImage.Source = CreateFrameBitmap(StagingBuffer); // don't reset the bitmap each time
+        CreateFrameBitmap(StagingBuffer);
+
+        sw.Stop();
+        fps = (float)(1000 / sw.Elapsed.TotalMilliseconds);
+        UpdateTextOverlay();
     }
 
     private WriteableBitmap CreateFrameBitmap(uint[] pixels)
