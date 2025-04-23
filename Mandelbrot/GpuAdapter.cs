@@ -47,6 +47,8 @@ public sealed class GpuAdapter : IDisposable
 
         var buffer = accelerator.Allocate1D<uint>(width * height);
 
+        accelerator.Synchronize();
+
         return new GpuAdapter(context, accelerator, kernel, buffer, paletteCache, width, height);
     }
 

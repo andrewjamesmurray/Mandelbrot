@@ -146,11 +146,11 @@ public sealed partial class MainWindow : Window
 
     private void UpdateTextOverlay()
     {
-        var fpsText = fps.ToString("0") + " fps";
-        var scaleText = "scale: " + _fractalState.Scale.ToString("E");
-        var iterText = "maxIter: " + _fractalState.MaxIter;
+        var fpsText =   "fps:     " + fps.ToString("0");
+        var iterText =  "maxIter: " + _fractalState.MaxIter;
+        var scaleText = "scale:   " + _fractalState.Scale.ToString("E");
 
-        FpsLabel.Text = fpsText + ", " + iterText + ", " + scaleText;
+        FpsLabel.Text = fpsText + "\n" + iterText + "\n" + scaleText;
     }
 
     private async void StartAutoZoom()

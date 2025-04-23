@@ -6,19 +6,31 @@
         WindowStyle="None"
         WindowState="Maximized"
         ResizeMode="NoResize"
-        Width="2560" 
-        Height="1080">
+        Width="1024" 
+        Height="768">
     
     <Grid>
         <Image Name="MandelbrotImage" Stretch="Fill" Margin="0,0,0,0" />
 
         <TextBlock Name="FpsLabel"
                Foreground="CornflowerBlue"
+               FontFamily="Consolas"
                FontSize="24"
                FontWeight="Bold"
                Background="Transparent"
                Margin="10"
                HorizontalAlignment="Left"
+               VerticalAlignment="Top"
+               />
+
+        <TextBlock Name="ResLabel"
+               Foreground="CornflowerBlue"
+               FontFamily="Consolas"
+               FontSize="24"
+               FontWeight="Bold"
+               Background="Transparent"
+               Margin="10"
+               HorizontalAlignment="Right"
                VerticalAlignment="Top"
                />
 
