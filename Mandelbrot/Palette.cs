@@ -1,29 +1,54 @@
-﻿namespace Mandelbrot;
+﻿using System.Drawing;
+
+namespace Mandelbrot;
 
 public static class Palette
 {
     public static uint[] GenerateColorLookup2()
     {
+        Color[] viridis =
+        [
+            Color.FromArgb(68, 1, 84),
+            Color.FromArgb(71, 44, 122),
+            Color.FromArgb(59, 81, 139),
+            Color.FromArgb(44, 113, 142),
+            Color.FromArgb(33, 144, 141),
+            Color.FromArgb(39, 173, 129),
+            Color.FromArgb(92, 200, 99),
+            Color.FromArgb(170, 220, 50),
+            Color.FromArgb(253, 231, 37),
+        ];
+
         var results = new uint[256];
 
         // Clamp between 0 and 1
-        for (int i = 0; i < 255; i++)
+        for (int gradient = 0; gradient < 255; gradient++)
         {
-            var t = Math.Max(0.0, Math.Min(1.0, (double)i/255));
+            var t = Math.Max(0.0, Math.Min(1.0, (double)gradient / 255));
 
-            // Plasma gradient approximation using polynomial fitting
-            // Based on matplotlib's plasma colormap (fitted to 5th-degree polynomials)
-            double r = 2.0 * t - 1.0;
-            double red = 0.3 + 0.3 * Math.Sin(3.0 * Math.PI * r);
-            double green = 0.4 + 0.4 * Math.Sin(3.0 * Math.PI * (r - 0.25));
-            double blue = 0.5 + 0.5 * Math.Cos(3.0 * Math.PI * r);
+            // Clamp t between 0 and 1
+            t = Math.Max(0.0, Math.Min(1.0, t));
 
-            // Gamma correct and scale to 0-255
-            byte R = (byte)(Math.Pow(red, 0.8) * 255);
-            byte G = (byte)(Math.Pow(green, 0.8) * 255);
-            byte B = (byte)(Math.Pow(blue, 0.8) * 255);
+            // Define Viridis color stops (RGB in 0–255)
+            int n = viridis.Length - 1;
+            double scaledT = t * n;
+            int i = (int)scaledT;
+            double frac = scaledT - i;
 
-            results[i] = ARGBToUInt(0xFF, R, G, B);
+            if (i >= n) 
+            {
+                var v = viridis[n];
+                results[gradient] = ARGBToUInt(0xFF, v.R, v.G, v.B);
+            }
+
+            Color c1 = viridis[i];
+            Color c2 = viridis[i + 1];
+
+            byte r = (byte)(c1.R + (c2.R - c1.R) * frac);
+            byte g = (byte)(c1.G + (c2.G - c1.G) * frac);
+            byte b = (byte)(c1.B + (c2.B - c1.B) * frac);
+
+            results[gradient] = ARGBToUInt(0xFF, r, g, b);
         }
 
         return results;
