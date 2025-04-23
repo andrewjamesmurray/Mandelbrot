@@ -4,31 +4,35 @@ namespace Mandelbrot;
 
 public class MandelbrotState
 {
-    private double _centerX = -0.74;
-    private double _centerY = 0.15;
-    private double _scale = 2.5;
-    private int _maxIter = 50;
+    private readonly short _width;
+    private readonly short _height;
+    private readonly double _aspectRatio;
 
-    private short _width;
-    private short _height;
-    private double _aspectRatio;
+    private double _centerX;
+    private double _centerY;
+    private double _scale;
+    private int _maxIter;
 
     const double zoomFactorIncrement = 0.95;
 
     public double Scale => _scale;
     public int MaxIter => _maxIter;
+
     public MandelbrotState(short width, short height)
     {
         _width = width;
         _height = height;
         _aspectRatio = (double)width / height;
+
+        Reset();
     }
 
     public void Reset()
     {
-        _centerX = -0.5;
-        _centerY = 0.0;
-        _scale = 3.5;
+        _centerX = -0.74;
+        _centerY = 0.15;
+        _scale = 2.5;
+        _maxIter = 150;
     }
 
     /// <summary>
@@ -36,8 +40,12 @@ public class MandelbrotState
     /// </summary>
     public void ResetForZoom()
     {
-        _centerX = -0.74335165531181;
-        _centerY = +0.13138323820835;
+        // original
+        //_centerX = -0.74335165531181;
+        //_centerY = +0.13138323820835;
+
+        _centerX = -0.73842101229341928;
+        _centerY = 0.1832356822787915;
     }
 
     public void Move(double deltaX, double deltaY)

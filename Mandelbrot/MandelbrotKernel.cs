@@ -73,11 +73,13 @@ public static class MandelbrotKernel
         uint color;
         if (iterations < maxIter)
         {
-            float mag = x * x + y * y;
-            float log_zn = XMath.Log(mag) / 2f;
-            float nu = XMath.Log(log_zn / log2) / log2;
-            var smooth = iterations + 1 - nu;
-            var normalized = (byte)(smooth / maxIter * Palette.NumShades);
+            //float mag = x * x + y * y;
+            //float log_zn = XMath.Log(mag) / 2f;
+            //float nu = XMath.Log(log_zn / log2) / log2;
+            //var smooth = iterations + 1 - nu;
+            //var normalized = (byte)(smooth / maxIter * Palette.NumShades);
+
+            var normalized = (byte)((double)iterations / maxIter * Palette.NumShades);
 
             color = buffers.Palette[normalized];
         }
