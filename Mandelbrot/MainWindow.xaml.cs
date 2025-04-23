@@ -174,6 +174,7 @@ public sealed partial class MainWindow : Window
         {
             GenerateMandelbrotFrame();            
 
+            float delay = (renderMs > TargetDelay) ? 1 : (TargetDelay - renderMs);
             await Task.Delay((int)delay);
         }
     }
