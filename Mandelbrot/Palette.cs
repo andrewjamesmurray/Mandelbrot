@@ -26,9 +26,6 @@ public static class Palette
         {
             var t = Math.Max(0.0, Math.Min(1.0, (double)gradient / 255));
 
-            // Clamp t between 0 and 1
-            t = Math.Max(0.0, Math.Min(1.0, t));
-
             // Define Viridis color stops (RGB in 0–255)
             int n = viridis.Length - 1;
             double scaledT = t * n;
