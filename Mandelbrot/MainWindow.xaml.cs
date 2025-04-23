@@ -4,16 +4,17 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 
 namespace Mandelbrot;
 
 public sealed partial class MainWindow : Window
 {
-    private readonly GpuAdapter _gpu;
-    private readonly MandelbrotState _fractalState;
-    private readonly WriteableBitmap bitmap;
-    private readonly uint[] StagingBuffer;
-    private readonly Int32Rect _rectangle;
+    private GpuAdapter _gpu;
+    private MandelbrotState _fractalState;
+    private WriteableBitmap _bitmap;
+    private uint[] StagingBuffer;
+    private Int32Rect _rectangle;
 
     private bool isZooming = false;
     private bool isPanning = false;
@@ -24,18 +25,8 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
-        var width = (short)Width;
-        var height = (short)Height;
-
-        _fractalState = new MandelbrotState(width, height);
-
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.Fant);
         RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
-
-        _gpu = GpuAdapter.Create(width, height, Palette.GenerateColorLookup2());
-
-        // Load the kernel once during initialization.
-        StagingBuffer = new uint[width * height];
 
         // Add event handlers for zooming, panning, and resizing.
         this.MouseWheel += MainWindow_MouseWheel;
@@ -44,14 +35,25 @@ public sealed partial class MainWindow : Window
         this.MouseLeftButtonUp += MouseLeftButtonUpHandler;
         this.MouseMove += MouseMoveHandler;
         this.KeyDown += KeyUpHandler;
+        this.Loaded += LoadedHandler;
+    }
 
-        bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
+    private void LoadedHandler(object sender, RoutedEventArgs e)
+    {
+        var width = (short)Width;
+        var height = (short)Height;
+
+        ResLabel.Text = (int)width + "x" + (int)height;
+
+        _fractalState = new MandelbrotState(width, height);
+        _bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
         _rectangle = new Int32Rect(0, 0, width, height);
-        MandelbrotImage.Source = bitmap;
+        MandelbrotImage.Source = _bitmap;
+        _gpu = GpuAdapter.Create(width, height, Palette.GenerateColorLookup2());
 
-        _gpu.Synchronize();
+        // Load the kernel once during initialization.
+        StagingBuffer = new uint[width * height];
 
-        // Generate the initial Mandelbrot set.
         GenerateMandelbrotFrame();
     }
 
@@ -153,20 +155,28 @@ public sealed partial class MainWindow : Window
         FpsLabel.Text = fpsText + "\n" + iterText + "\n" + scaleText;
     }
 
+    const int TargetFps = 120;
+
     private async void StartAutoZoom()
     {
         _fractalState.ResetForZoom();
 
+        float targetDelay = 1000f / TargetFps;
+
         while (isZooming && _fractalState.ZoomNext())
         {
-            GenerateMandelbrotFrame();
-            await Task.Delay(1);
+            GenerateMandelbrotFrame();            
+
+            float delay = (fps > targetDelay) ? 1f : (targetDelay - fps);
+            await Task.Delay((int)delay);
         }
     }
 
     protected override void OnClosed(EventArgs e)
     {
-        _gpu.Dispose();
+        if(_gpu != null) 
+            _gpu.Dispose();
+
         base.OnClosed(e);
     }
 
@@ -189,7 +199,7 @@ public sealed partial class MainWindow : Window
 
     private WriteableBitmap CreateFrameBitmap(uint[] pixels)
     {
-        bitmap.Lock();
+        _bitmap.Lock();
 
         var numBytes = pixels.Length * sizeof(uint);
 
@@ -197,15 +207,15 @@ public sealed partial class MainWindow : Window
         {
             Buffer.MemoryCopy(
                 source: Unsafe.AsPointer(ref pixels[0]),
-                destination: bitmap.BackBuffer.ToPointer(),
+                destination: _bitmap.BackBuffer.ToPointer(),
                 destinationSizeInBytes: numBytes,
                 sourceBytesToCopy: numBytes
             );
         }
 
-        bitmap.AddDirtyRect(_rectangle);
-        bitmap.Unlock();
+        _bitmap.AddDirtyRect(_rectangle);
+        _bitmap.Unlock();
 
-        return bitmap;
+        return _bitmap;
     }
 }
