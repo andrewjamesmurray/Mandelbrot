@@ -4,6 +4,8 @@ namespace Mandelbrot;
 
 public static class MandelbrotKernel
 {
+    public const uint DefaultColor = 0xFF000000;
+
     public static void ComputeMandelbrotFrame(Index1D index, MandelbrotParameters parameters)
     {
         int x = index % parameters.Width;
@@ -32,7 +34,7 @@ public static class MandelbrotKernel
             iteration++;
         }
 
-        uint color = (iteration >= maxIter) ? 0 : parameters.Gradient[iteration];
+        uint color = (iteration >= maxIter) ? DefaultColor : parameters.Gradient[iteration];
 
         parameters.Output[index] = color;
     }
