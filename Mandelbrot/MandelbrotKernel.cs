@@ -1,5 +1,4 @@
-using ILGPU;
-using ILGPU.Runtime;
+﻿using ILGPU;
 
 namespace Mandelbrot;
 
@@ -34,11 +33,17 @@ public static class MandelbrotKernel
 
         const int maxIter = MandelbrotConstants.MaxIterations;
 
-        while (iteration < maxIter && (zx * zx + zy * zy) <= 4.0)
+        while (iteration < maxIter)
         {
-            double temp = zx * zx - zy * zy + real;
-            zy = 2.0 * zx * zy + imaginary;
+            var zx2 = zx * zx;
+            var zy2 = zy * zy;
+
+            if ((zx2 + zy2) > 4.0) break;
+
+            double temp = zx2 - zy2 + real;
+            zy = 2.0 * zx * zy + imaginary; 
             zx = temp;
+
             iteration++;
         }
 
