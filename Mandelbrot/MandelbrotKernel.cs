@@ -77,7 +77,7 @@ public static class MandelbrotKernel
             float mag = x * x + y * y;
             float log_zn = XMath.Log(mag) / 2f;
             float log2 = XMath.Log(2f);
-            float nu = XMath.Log(log_zn / XMath.Log(2f)) / XMath.Log(2f);
+            float nu = XMath.Log(log_zn / log2) / log2;
             smooth += 1 - nu;
             var normalized = (byte)(smooth/maxIter*255);
 
