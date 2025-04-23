@@ -18,6 +18,9 @@ public class MandelbrotState
     public double Scale => _scale;
     public int MaxIter => _maxIter;
 
+    public double CenterX => _centerX;
+    public double CenterY => _centerY;
+
     public MandelbrotState(short width, short height)
     {
         _width = width;

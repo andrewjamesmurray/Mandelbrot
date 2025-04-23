@@ -4,7 +4,6 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Media.Media3D;
 
 namespace Mandelbrot;
 
@@ -13,20 +12,19 @@ public sealed partial class MainWindow : Window
     private GpuAdapter _gpu;
     private MandelbrotState _fractalState;
     private WriteableBitmap _bitmap;
-    private uint[] StagingBuffer;
+    private uint[] _stagingBuffer;
     private Int32Rect _rectangle;
 
-    private bool isZooming = false;
-    private bool isPanning = false;
-    private Point startPanPoint;
-    private int renderMs = 0;
-    //private float fps = 0f;
-
+    private bool _isZooming = false;
+    private bool _isPanning = false;
+    private Point _startPanPoint;
+    private int _renderMs = 0;
+    
     public MainWindow()
     {
         InitializeComponent();
 
-        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.Fant);
+        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
         RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
 
         // Add event handlers for zooming, panning, and resizing.
@@ -53,7 +51,7 @@ public sealed partial class MainWindow : Window
         _gpu = GpuAdapter.Create(width, height, Palette.GenerateColorLookup2());
 
         // Load the kernel once during initialization.
-        StagingBuffer = new uint[width * height];
+        _stagingBuffer = new uint[width * height];
 
         GenerateMandelbrotFrame();
     }
@@ -69,8 +67,8 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void MouseLeftButtonDownHandler(object sender, MouseButtonEventArgs e)
     {
-        isPanning = true;
-        startPanPoint = e.GetPosition(MandelbrotImage);
+        _isPanning = true;
+        _startPanPoint = e.GetPosition(MandelbrotImage);
         MandelbrotImage.CaptureMouse();
     }
 
@@ -79,24 +77,24 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void MouseLeftButtonUpHandler(object sender, MouseButtonEventArgs e)
     {
-        isPanning = false;
+        _isPanning = false;
         MandelbrotImage.ReleaseMouseCapture();
     }
 
     private void MouseMoveHandler(object sender, MouseEventArgs e)
     {
-        if (!isPanning)
+        if (!_isPanning)
             return;
 
         // Calculate the movement delta.
         var currentPoint = e.GetPosition(MandelbrotImage);
-        var deltaX = currentPoint.X - startPanPoint.X;
-        var deltaY = currentPoint.Y - startPanPoint.Y;
+        var deltaX = currentPoint.X - _startPanPoint.X;
+        var deltaY = currentPoint.Y - _startPanPoint.Y;
 
         _fractalState.Move(deltaX, deltaY);
 
         // Update the start point for the next movement calculation.
-        startPanPoint = currentPoint;
+        _startPanPoint = currentPoint;
 
         GenerateMandelbrotFrame();
     }
@@ -121,14 +119,14 @@ public sealed partial class MainWindow : Window
                 break;
 
             case Key.Space:
-                if (!isZooming)
+                if (!_isZooming)
                 {
-                    isZooming = true;
+                    _isZooming = true;
                     StartAutoZoom();
                 }
                 else
                 {
-                    isZooming = false;
+                    _isZooming = false;
                 }
                 break;
 
@@ -149,17 +147,13 @@ public sealed partial class MainWindow : Window
 
     private void UpdateTextOverlay()
     {
-        var fps = 1000 / renderMs;
-
-        var fpsText    = "fps:     " + fps.ToString("0");
-        var renderText = "render:  " + renderMs.ToString("0") + " ms";
+        var renderText = "render:  " + _renderMs.ToString("0") + " ms";
         var iterText   = "maxIter: " + _fractalState.MaxIter;
         var scaleText  = "scale:   " + _fractalState.Scale.ToString("E");
 
-        FpsLabel.Text = 
-            fpsText + "\n" + 
+        FpsLabel.Text =
             renderText + "\n" +
-            iterText + "\n" + 
+            iterText + "\n" +
             scaleText + "\n";
     }
 
@@ -170,11 +164,11 @@ public sealed partial class MainWindow : Window
 
         _fractalState.ResetForZoom();
 
-        while (isZooming && _fractalState.ZoomNext())
+        while (_isZooming && _fractalState.ZoomNext())
         {
             GenerateMandelbrotFrame();            
 
-            float delay = (renderMs > TargetDelay) ? 1 : (TargetDelay - renderMs);
+            float delay = (_renderMs > TargetDelay) ? 1 : (TargetDelay - _renderMs);
             await Task.Delay((int)delay);
         }
     }
@@ -194,13 +188,13 @@ public sealed partial class MainWindow : Window
 
         var parameters = _fractalState.GenerateParameters();
 
-        _gpu.Kernel(parameters, StagingBuffer);
+        _gpu.Kernel(parameters, _stagingBuffer);
 
-        CreateFrameBitmap(StagingBuffer);
+        CreateFrameBitmap(_stagingBuffer);
 
         sw.Stop();
 
-        renderMs = (int)sw.Elapsed.TotalMilliseconds;
+        _renderMs = (int)sw.Elapsed.TotalMilliseconds;
         UpdateTextOverlay();
     }
 
