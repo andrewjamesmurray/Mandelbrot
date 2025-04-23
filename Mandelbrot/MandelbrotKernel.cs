@@ -10,33 +10,33 @@ public static class MandelbrotKernel
     private static int Mandelbrot(double cr, double ci, int maxIter)
     {
         // Pre-iteration Bulb Checking
-        double ci2 = ci * ci;
+        var ci2 = ci * ci;
         var crp = cr + 1;
         if (crp * crp + ci2 < 1.0 / 16.0)
             return maxIter;
 
         // Main cardioid
         var crm = cr - 0.25;
-        double q = crm * crm + ci2;
+        var q = crm * crm + ci2;
         if (q * (q + crm) < 0.25 * ci2)
             return maxIter;
 
         double zr = 0.0, zi = 0.0;
-        int iterations = 0, period = 0;
+        int iter = 0, period = 0;
         double prevZr = 0, prevZi = 0;
 
-        while (iterations < maxIter)
+        while (iter < maxIter)
         {
             var zr2 = zr * zr;
             var zi2 = zi * zi;
 
             if ((zr2 + zi2) > 4.0) break;
 
-            double temp = zr2 - zi2 + cr;
+            var temp = zr2 - zi2 + cr;
             zi = 2.0 * zr * zi + ci;
             zr = temp;
 
-            iterations++;
+            iter++;
 
             // Periodicity Checking optimization
             if (++period > 20)
@@ -51,7 +51,7 @@ public static class MandelbrotKernel
             }
         }
 
-        return iterations;
+        return iter;
     }
 
     public static void ComputeMandelbrotFrame(Index1D index, MandelbrotParameters parameters)
@@ -60,14 +60,14 @@ public static class MandelbrotKernel
         int y = index / parameters.Width;
 
         // Calculate the complex coordinate.
-        double cr = (x * parameters.AdjustedScaleXPerPixel) - parameters.HalfAdjustedScaleX + parameters.CenterX;
-        double ci = (y * parameters.AdjustedScaleYPerPixel) - parameters.HalfAdjustedScaleY + parameters.CenterY;
+        var cr = (x * parameters.AdjustedScaleXPerPixel) + parameters.OffsetX;
+        var ci = (y * parameters.AdjustedScaleYPerPixel) + parameters.OffsetY;
 
         const int maxIter = MandelbrotConstants.MaxIterations;
 
         var iterations = Mandelbrot(cr, ci, maxIter);
 
-        uint color = iterations < maxIter ? parameters.Gradient[iterations] : BulbColor;
+        var color = iterations < maxIter ? parameters.Gradient[iterations] : BulbColor;
 
         parameters.Output[index] = color;
     }
