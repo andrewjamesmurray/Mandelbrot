@@ -24,12 +24,8 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
-        width = 2560; // (short)SystemParameters.MaximizedPrimaryScreenWidth;
-        height = 1080; // (short)SystemParameters.MaximizedPrimaryScreenHeight;
-
-        this.Width = width;
-        this.Height = height;
-
+        var width = (short)Width;
+        var height = (short)Height;
 
         _fractalState = new MandelbrotState(width, height);
 
