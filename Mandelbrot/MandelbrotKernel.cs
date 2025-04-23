@@ -7,6 +7,7 @@ public static class MandelbrotKernel
 {
     const uint BulbColor = 0xFF000000;
     const double PeriodicityLimit = 1e-24;
+    const float log2 = 0.30102999566f;
 
     private static int Mandelbrot(double cr, double ci, int maxIter)
     {
@@ -76,7 +77,6 @@ public static class MandelbrotKernel
             float smooth = iterations;
             float mag = x * x + y * y;
             float log_zn = XMath.Log(mag) / 2f;
-            float log2 = XMath.Log(2f);
             float nu = XMath.Log(log_zn / log2) / log2;
             smooth += 1 - nu;
             var normalized = (byte)(smooth/maxIter*255);
