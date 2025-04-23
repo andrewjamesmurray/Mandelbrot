@@ -4,6 +4,53 @@ namespace Mandelbrot;
 
 public static class Palette
 {
+    public const int NumShades = 256;
+    public static uint ARGBToUInt(byte alpha, byte r, byte g, byte b)
+    {
+        return (uint)(alpha << 24 | r << 16 | g << 8 | b);
+    }
+
+    public static uint[] GenerateColorLookup()
+    {
+        uint ColorFromIntensity(double hue)
+        {
+            var hue6 = hue * 6.0;
+            var intHue6 = Math.Floor(hue6);
+            var segment = intHue6 % 6;
+            var f = hue6 - intHue6; // fraction part only
+
+            byte q = (byte)(255 * (1 - f));
+            byte t = (byte)(255 * f);
+            byte h = (byte)(127 * f);
+
+            switch (segment)
+            {
+                case 0:
+                    return ARGBToUInt(0xFF, 0, t, t);
+                case 1:
+                    return ARGBToUInt(0xFF, q, 0xFF, q);
+                case 2:
+                    return ARGBToUInt(0xFF, 0, h, t);
+                case 3:
+                    return ARGBToUInt(0xFF, 0, h, q);
+                case 4:
+                    return ARGBToUInt(0xFF, t, 0, h);
+                default:
+                    return ARGBToUInt(0xFF, h, 0, q);
+            }
+        }
+
+        var results = new uint[NumShades];
+
+        for (var i = 0; i < NumShades; i++)
+        {
+            var intensity = (double)i / NumShades;
+            results[i] = ColorFromIntensity(intensity);
+        }
+
+        return results;
+    }
+
     public static uint[] GenerateColorLookup2()
     {
         Color[] viridis =
@@ -19,12 +66,12 @@ public static class Palette
             Color.FromArgb(253, 231, 37),
         ];
 
-        var results = new uint[256];
+        var results = new uint[NumShades];
 
         // Clamp between 0 and 1
-        for (int gradient = 0; gradient < 255; gradient++)
+        for (int gradient = 0; gradient < NumShades; gradient++)
         {
-            var t = Math.Max(0.0, Math.Min(1.0, (double)gradient / 255));
+            var t = Math.Max(0.0, Math.Min(1.0, (double)gradient / NumShades));
 
             // Define Viridis color stops (RGB in 0–255)
             int n = viridis.Length - 1;
@@ -32,7 +79,7 @@ public static class Palette
             int i = (int)scaledT;
             double frac = scaledT - i;
 
-            if (i >= n) 
+            if (i >= n)
             {
                 var v = viridis[n];
                 results[gradient] = ARGBToUInt(0xFF, v.R, v.G, v.B);
@@ -44,56 +91,11 @@ public static class Palette
             byte r = (byte)(c1.R + (c2.R - c1.R) * frac);
             byte g = (byte)(c1.G + (c2.G - c1.G) * frac);
             byte b = (byte)(c1.B + (c2.B - c1.B) * frac);
+            byte a = 0xFF;
 
-            results[gradient] = ARGBToUInt(0xFF, r, g, b);
+            results[gradient] = ARGBToUInt(a, r, g, b);
         }
 
         return results;
-    }
-
-    public static uint[] GenerateColorLookup()
-    {
-        var results = new uint[MandelbrotConstants.MaxIterations + 1];
-
-        for (var i = 0; i <= MandelbrotConstants.MaxIterations; i++)
-        {
-            var intensity = (double)i / MandelbrotConstants.MaxIterations;
-            results[i] = ColorFromIntensity(intensity);
-        }
-
-        return results;
-    }
-
-    public static uint ARGBToUInt(byte alpha, byte r, byte g, byte b)
-    {
-        return (uint)(alpha << 24 | r << 16 | g << 8 | b);
-    }
-
-    private static uint ColorFromIntensity(double hue)
-    {
-        var hue6 = hue * 6.0;
-        var intHue6 = Math.Floor(hue6);
-        var segment = intHue6 % 6;
-        var f = hue6 - intHue6; // fraction part only
-
-        byte q = (byte)(255 * (1 - f));
-        byte t = (byte)(255 * f);
-        byte h = (byte)(127 * f);
-
-        switch (segment)
-        {
-            case 0:
-                return ARGBToUInt(0xFF, 0, t, t);
-            case 1:
-                return ARGBToUInt(0xFF, q, 0xFF, q);
-            case 2:
-                return ARGBToUInt(0xFF, 0, h, t);
-            case 3:
-                return ARGBToUInt(0xFF, 0, h, q);
-            case 4:
-                return ARGBToUInt(0xFF, t, 0, h);
-            default:
-                return ARGBToUInt(0xFF, h, 0, q);
-        }
     }
 }
