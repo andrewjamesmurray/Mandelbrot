@@ -39,6 +39,15 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
+        width = 5120; // (short)SystemParameters.MaximizedPrimaryScreenWidth;
+        height = 2160; // (short)SystemParameters.MaximizedPrimaryScreenHeight;
+
+        this.Width = width;
+        this.Height = height;
+
+        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.Fant);
+        RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
+
         // Initialize ILGPU context and accelerator.
         context = Context.CreateDefault();
         accelerator = context.CreateCudaAccelerator(0);
