@@ -24,11 +24,11 @@ public static class MandelbrotKernel
         while (iteration < maxIter)
         {
             var zr2 = zr * zr;
-            var zy2 = zi * zi;
+            var zi2 = zi * zi;
 
-            if ((zr2 + zy2) > 4.0) break;
+            if ((zr2 + zi2) > 4.0) break;
 
-            double temp = zr2 - zy2 + cr;
+            double temp = zr2 - zi2 + cr;
             zi = 2.0 * zr * zi + ci; 
             zr = temp;
 
