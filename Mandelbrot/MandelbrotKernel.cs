@@ -1,5 +1,3 @@
-﻿// Fast Mandelbrot Rendering with GPU in C#.
-// Guy Fernando - i4cy (2024)
 using ILGPU;
 using ILGPU.Runtime;
 

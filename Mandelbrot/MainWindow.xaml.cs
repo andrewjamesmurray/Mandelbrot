@@ -1,9 +1,3 @@
-﻿// Fast Mandelbrot Rendering with GPU in C#.
-// Guy Fernando - i4cy (2024)
-// Optimized by Andrew Murray (2025)
-
-using System.Diagnostics;
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
