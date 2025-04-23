@@ -40,8 +40,8 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
-        width = 5120; // (short)SystemParameters.MaximizedPrimaryScreenWidth;
-        height = 2160; // (short)SystemParameters.MaximizedPrimaryScreenHeight;
+        width = 2560; // (short)SystemParameters.MaximizedPrimaryScreenWidth;
+        height = 1080; // (short)SystemParameters.MaximizedPrimaryScreenHeight;
 
         this.Width = width;
         this.Height = height;
@@ -236,18 +236,24 @@ public sealed partial class MainWindow : Window
         if (width <= 0 || height <= 0)
             return; 
 
-        double aspectRatio = (double)width / height;
+        double aspectRatio = (double)width / height; // move to startup
         double adjustedScaleX = scale;
         double adjustedScaleY = scale;
 
         if (aspectRatio >= 1.0)
-            adjustedScaleX *= aspectRatio;
+        {
+            adjustedScaleX = scale * aspectRatio;
+            adjustedScaleY = scale;
+        }
         else
-            adjustedScaleY /= aspectRatio;
+        {
+            adjustedScaleX = scale;
+            adjustedScaleY = scale / aspectRatio;
+        }
 
         int pixelCount = width * height;
 
-        var p = new MandelbrotParameters
+        var parameters = new MandelbrotParameters
         { 
             Output = buffer,
             Gradient = gradientBuffer.View,
@@ -256,9 +262,13 @@ public sealed partial class MainWindow : Window
             Scale = scale,
             Width = width,
             Height = height,            
+            AdjustedScaleXPerPixel = adjustedScaleX / width,    
+            AdjustedScaleYPerPixel = adjustedScaleY / height,   
+            HalfAdjustedScaleX = adjustedScaleX / 2,            
+            HalfAdjustedScaleY = adjustedScaleY / 2,            
         };
 
-        kernel(pixelCount, p);
+        kernel(pixelCount, parameters);
 
         // Retrieve the results from GPU
         buffer.CopyToCPU(StagingBuffer); 

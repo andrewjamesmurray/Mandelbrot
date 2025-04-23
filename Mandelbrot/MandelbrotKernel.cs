@@ -9,29 +9,14 @@ public static class MandelbrotKernel
         int x = index % parameters.Width;
         int y = index / parameters.Width;
 
-        // Calculate aspect ratio and scaling factors.
-        double aspectRatio = (double)parameters.Width / parameters.Height;
-        double adjustedScaleX, adjustedScaleY;
-        if (aspectRatio >= 1.0)
-        {
-            adjustedScaleX = parameters.Scale * aspectRatio;
-            adjustedScaleY = parameters.Scale;
-        }
-        else
-        {
-            adjustedScaleX = parameters.Scale;
-            adjustedScaleY = parameters.Scale / aspectRatio;
-        }
-
         // Calculate the complex coordinate.
-        double real = (x * adjustedScaleX / parameters.Width) - (adjustedScaleX / 2) + parameters.CenterX;
-        double imaginary = (y * adjustedScaleY / parameters.Height) - (adjustedScaleY / 2) + parameters.CenterY;
-
-        // Perform Mandelbrot iteration.
-        double zx = 0.0, zy = 0.0;
-        int iteration = 0;
+        double real = (x * parameters.AdjustedScaleXPerPixel) - parameters.HalfAdjustedScaleX + parameters.CenterX;
+        double imaginary = (y * parameters.AdjustedScaleYPerPixel) - parameters.HalfAdjustedScaleY + parameters.CenterY;
 
         const int maxIter = MandelbrotConstants.MaxIterations;
+
+        double zx = 0.0, zy = 0.0;
+        int iteration = 0;
 
         while (iteration < maxIter)
         {
