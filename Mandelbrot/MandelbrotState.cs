@@ -1,6 +1,4 @@
-﻿using System.Windows.Media.Media3D;
-
-namespace Mandelbrot;
+﻿namespace Mandelbrot;
 
 public class MandelbrotState
 {
@@ -64,7 +62,7 @@ public class MandelbrotState
         double safeLog = Math.Log10(Math.Max(zoom, 1.0));
 
         // Grow iteration count smoothly with zoom depth
-        return (int)(50 + 200 * Math.Pow(safeLog, 2));
+        return (int)(100 * scale + 250 * Math.Pow(safeLog, 1.5));
     }
 
     public bool ZoomNext()
