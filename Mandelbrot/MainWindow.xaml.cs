@@ -249,9 +249,9 @@ public sealed partial class MainWindow : Window
         if (width <= 0 || height <= 0)
             return; 
 
-        double aspectRatio = (double)width / height; // move to startup
-        double adjustedScaleX = scale;
-        double adjustedScaleY = scale;
+        var aspectRatio = (double)width / height; // move to startup
+        var adjustedScaleX = scale;
+        var adjustedScaleY = scale;
 
         if (aspectRatio >= 1.0)
         {
@@ -264,7 +264,7 @@ public sealed partial class MainWindow : Window
             adjustedScaleY = scale / aspectRatio;
         }
 
-        int pixelCount = width * height;
+        var pixelCount = width * height;
 
         var parameters = new MandelbrotParameters
         { 
