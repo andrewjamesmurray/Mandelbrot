@@ -22,6 +22,9 @@ public sealed partial class MainWindow : Window
 
     private readonly Stopwatch sw = new();
 
+    const int TargetFps = 60;
+
+
     public MainWindow()
     {
         InitializeComponent();
@@ -174,7 +177,6 @@ public sealed partial class MainWindow : Window
 
     private async void StartAutoZoom()
     {
-        const int TargetFps = 120;
         const float TargetDelay = 1000f / TargetFps;
 
         _fractalState.ResetForZoom();
