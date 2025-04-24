@@ -50,7 +50,7 @@ public sealed partial class MainWindow : Window
         _bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
         _rectangle = new Int32Rect(0, 0, width, height);
         MandelbrotImage.Source = _bitmap;
-        _gpu = GpuAdapter.Create(width, height, Palette.GenerateColorLookup2());
+        _gpu = GpuAdapter.Create(width, height, Palette.GenerateColorLookup());
 
         // Load the kernel once during initialization.
         _stagingBuffer = new uint[width * height];
