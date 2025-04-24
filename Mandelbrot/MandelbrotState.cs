@@ -64,10 +64,13 @@ public class MandelbrotState
     /// </summary>
     public void ResetForZoom()
     {
+        // INNER MANDELBROT
+        _centerX = -1.0401309460202168;
+        _centerY = 0.3487766281539035;
+
         // ORIGINAL
         // _centerX = -1.2535516388693015;
         // _centerY = 0.37899272530660111;
-
 
         // SPIRALS
         //_centerX = -0.7440082435282657;
@@ -81,15 +84,15 @@ public class MandelbrotState
         //_centerX = -1.1719083849552117;
         //_centerY = 0.18669829447747052;
 
-        // INNER MANDELBROT
-        _centerX = -1.0401309460202168;
-        _centerY = 0.3487766281539035;
+        // STARFISH AREA
+        //_centerX = -0.2262667169347128;
+        //_centerY = -1.1161743860818043;
 
-        // Random hole (NICE AND FAST)
+        // VERY FAST RANDOM HOLE
         //_centerX = -1.4208192303359084;
         //_centerY = -1.1046267101656378E-06;
 
-        SetScale(3.5);
+        SetScale(10);
     }
 
     public void Move(double deltaX, double deltaY)
@@ -98,17 +101,20 @@ public class MandelbrotState
         _centerY -= deltaY / _height * _scale;
     }
 
+    /// <summary>
+    /// Dynamically set maxIter based on zoom depth to improve performance at low zooms
+    /// </summary>
     private static int ComputeMaxIter(double scale)
     {
-        // Heuristic based on the inverse of zoom scale
         // Logarithmic boost keeps growth manageable at deep zooms
-        double zoom = Math.Max(1.0, 1 / Math.Max(scale, 1e-13)); // Much lower and it can return a negative number
+        var divisor = Math.Max(scale, 1e-13); // Smaller numbers could generate a negative number
+        double zoom = 1.0 / divisor;
 
         // Instead of log(zoom), use log(max(zoom, 1)) so log never goes negative
-        double safeLog = Math.Log10(zoom);
+        double safeLog = Math.Log10(Math.Max(1.0, zoom));
 
         // Grow iteration count smoothly with zoom depth
-        return (int)Math.Max(150, (60 * scale + 200 * Math.Pow(safeLog, 1.5)));
+        return (int)Math.Max(350, (200 * Math.Pow(safeLog, 1.5)));
     }
 
     public bool ZoomNext()
@@ -133,8 +139,9 @@ public class MandelbrotState
         SetScale(_scale * scaleMultiplier);
 
         // Adjust the center point based on the normalized mouse position.
-        _centerX -= normX * (1 - _scale / (_scale * scaleMultiplier));
-        _centerY -= normY * (1 - _scale / (_scale * scaleMultiplier));
+        var normMultiplier = (1 - _scale / (_scale * scaleMultiplier));
+        _centerX -= normX * normMultiplier;
+        _centerY -= normY * normMultiplier;
     }
 
     public void IncreaseMaxIter()
