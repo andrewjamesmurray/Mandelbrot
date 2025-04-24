@@ -52,15 +52,10 @@ public sealed class GpuAdapter : IDisposable
         return new GpuAdapter(context, accelerator, kernel, buffer, paletteCache, width, height);
     }
 
-    public void Kernel(MandelbrotParameters mandelbrotParameters, uint[] outputBuffer)
+    public void Render(MandelbrotParameters mandelbrotParameters, uint[] outputBuffer)
     {
         _kernel(_pixelIndex, mandelbrotParameters, _bufferParameters);
         _outputBuffer.CopyToCPU(outputBuffer);
-    }
-
-    public void Synchronize()
-    {
-        _accelerator.Synchronize();
     }
 
     public void Dispose()

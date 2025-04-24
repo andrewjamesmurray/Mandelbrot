@@ -202,7 +202,7 @@ public sealed partial class MainWindow : Window
         sw.Restart();
 
         var parameters = _fractalState.GenerateParameters();
-        _gpu.Kernel(parameters, _stagingBuffer);
+        _gpu.Render(parameters, _stagingBuffer);
         CreateFrameBitmap(_stagingBuffer);
 
         sw.Stop();
