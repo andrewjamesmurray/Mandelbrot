@@ -1,4 +1,5 @@
-﻿using ILGPU;
+﻿using System.Runtime.CompilerServices;
+using ILGPU;
 
 namespace Mandelbrot;
 
@@ -7,6 +8,7 @@ public static class MandelbrotKernel
     public const uint BulbColor = 0xFF000000;
     public const double PeriodicityLimit = 1e-24;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int Mandelbrot(double cr, double ci, int maxIter, byte optimizations)
     {
         if ((optimizations & MandelbrotParameters.BulbCheckOptimizationEnum) == MandelbrotParameters.BulbCheckOptimizationEnum)
@@ -29,6 +31,8 @@ public static class MandelbrotKernel
         int period = 0;
         int iter = 0;
 
+        var doPeriodicityCheck = (optimizations & MandelbrotParameters.PeriodicityOptimizationEnum) == MandelbrotParameters.PeriodicityOptimizationEnum;
+
         while (iter < maxIter)
         {
             var zr2 = zr * zr;
@@ -43,7 +47,7 @@ public static class MandelbrotKernel
 
             iter++;
 
-            if ((optimizations & MandelbrotParameters.PeriodicityOptimizationEnum) == MandelbrotParameters.PeriodicityOptimizationEnum)
+            if (doPeriodicityCheck)
             {
                 // Periodicity Checking optimization
                 if (++period > 20)
