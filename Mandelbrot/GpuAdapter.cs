@@ -34,11 +34,7 @@ public sealed class GpuAdapter : IDisposable, IComputeAdapter
 
     public static GpuAdapter Create(short width, short height, uint[] palette)
     {
-        var context = Context.Create(builder =>
-        {
-            builder.Default().EnableAlgorithms();
-        });
-
+        var context = Context.CreateDefault();
         var accelerator = context.GetPreferredDevice(preferCPU: false).CreateAccelerator(context);
         var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, MandelbrotParameters, BufferParameters>(MandelbrotKernel.ComputeMandelbrotFrame);
 
