@@ -1,5 +1,4 @@
 ﻿using ILGPU;
-using ILGPU.Algorithms;
 
 namespace Mandelbrot;
 
@@ -7,7 +6,6 @@ public static class MandelbrotKernel
 {
     const uint BulbColor = 0xFF000000;
     const double PeriodicityLimit = 1e-24;
-    const float log2 = 0.30102999566f;
 
     private static int Mandelbrot(double cr, double ci, int maxIter, byte optimizations)
     {
