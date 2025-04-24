@@ -59,16 +59,35 @@ public class MandelbrotState
         SetScale(2.5);
     }
 
-    const double ZoomTargetX = -1.2535516388693015;
-    const double ZoomTargetY = 0.37899272530660111;
-
     /// <summary>
     /// Reset to a point of interest
     /// </summary>
     public void ResetForZoom()
     {
-        _centerX = -1.2535516388693015;
-        _centerY = 0.37899272530660111;
+        // ORIGINAL
+        // _centerX = -1.2535516388693015;
+        // _centerY = 0.37899272530660111;
+
+
+        // SPIRALS
+        //_centerX = -0.7440082435282657;
+        //_centerY = 0.1481642578992491;
+
+        // REPEATED HOLES
+        //_centerX = -0.6918522229482166;
+        //_centerY = 0.27323155495824253;
+
+        // DENDRIDE THINGIE
+        //_centerX = -1.1719083849552117;
+        //_centerY = 0.18669829447747052;
+
+        // INNER MANDELBROT
+        _centerX = -1.0401309460202168;
+        _centerY = 0.3487766281539035;
+
+        // Random hole (NICE AND FAST)
+        //_centerX = -1.4208192303359084;
+        //_centerY = -1.1046267101656378E-06;
 
         SetScale(3.5);
     }
@@ -89,7 +108,7 @@ public class MandelbrotState
         double safeLog = Math.Log10(zoom);
 
         // Grow iteration count smoothly with zoom depth
-        return (int)Math.Max(150, (60 * scale + 250 * Math.Pow(safeLog, 1.6)));
+        return (int)Math.Max(150, (60 * scale + 200 * Math.Pow(safeLog, 1.5)));
     }
 
     public bool ZoomNext()
