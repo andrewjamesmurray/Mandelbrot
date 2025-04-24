@@ -9,7 +9,7 @@ namespace Mandelbrot;
 
 public sealed partial class MainWindow : Window
 {
-    private GpuAdapter _gpu;
+    private IComputeAdapter _compute;
     private MandelbrotState _fractalState;
     private WriteableBitmap _bitmap;
     private uint[] _stagingBuffer;
@@ -50,7 +50,7 @@ public sealed partial class MainWindow : Window
         _bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
         _rectangle = new Int32Rect(0, 0, width, height);
         MandelbrotImage.Source = _bitmap;
-        _gpu = GpuAdapter.Create(width, height, Palette.GenerateColorLookup());
+        _compute = GpuAdapter.Create(width, height, Palette.GenerateColorLookup());
 
         // Load the kernel once during initialization.
         _stagingBuffer = new uint[width * height];
@@ -191,8 +191,8 @@ public sealed partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        if(_gpu != null) 
-            _gpu.Dispose();
+        if(_compute != null) 
+            _compute.Dispose();
 
         base.OnClosed(e);
     }
@@ -202,7 +202,7 @@ public sealed partial class MainWindow : Window
         sw.Restart();
 
         var parameters = _fractalState.GenerateParameters();
-        _gpu.Render(parameters, _stagingBuffer);
+        _compute.Render(parameters, _stagingBuffer);
         CreateFrameBitmap(_stagingBuffer);
 
         sw.Stop();

@@ -3,7 +3,7 @@ using ILGPU.Runtime;
 
 namespace Mandelbrot;
 
-public sealed class GpuAdapter : IDisposable
+public sealed class GpuAdapter : IDisposable, IComputeAdapter
 {
     private readonly Context _context;
     private readonly Accelerator _accelerator;

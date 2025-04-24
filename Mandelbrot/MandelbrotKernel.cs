@@ -4,10 +4,10 @@ namespace Mandelbrot;
 
 public static class MandelbrotKernel
 {
-    const uint BulbColor = 0xFF000000;
-    const double PeriodicityLimit = 1e-24;
+    public const uint BulbColor = 0xFF000000;
+    public const double PeriodicityLimit = 1e-24;
 
-    private static int Mandelbrot(double cr, double ci, int maxIter, byte optimizations)
+    public static int Mandelbrot(double cr, double ci, int maxIter, byte optimizations)
     {
         if ((optimizations & MandelbrotParameters.BulbCheckOptimizationEnum) == MandelbrotParameters.BulbCheckOptimizationEnum)
         { 
