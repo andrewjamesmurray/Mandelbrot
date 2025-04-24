@@ -1,9 +1,6 @@
-﻿using System;
-using System.Buffers;
+﻿namespace Mandelbrot;
 
-namespace Mandelbrot;
-
-public class CpuAdapter : IComputeAdapter
+public sealed class CpuAdapter : IComputeAdapter
 {
     private readonly uint[] _palette;
 

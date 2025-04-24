@@ -49,12 +49,11 @@ public sealed partial class MainWindow : Window
         _fractalState = new MandelbrotState(width, height);
         _bitmap = new WriteableBitmap(width, height, 140, 140, PixelFormats.Bgra32, null);
         _rectangle = new Int32Rect(0, 0, width, height);
-        MandelbrotImage.Source = _bitmap;
-        _compute = GpuAdapter.Create(width, height, Palette.GenerateColorLookup());
-
-        // Load the kernel once during initialization.
         _stagingBuffer = new uint[width * height];
 
+        _compute = GpuAdapter.Create(width, height, Palette.GenerateColorLookup());
+
+        MandelbrotImage.Source = _bitmap;
         GenerateMandelbrotFrame();
     }
 
