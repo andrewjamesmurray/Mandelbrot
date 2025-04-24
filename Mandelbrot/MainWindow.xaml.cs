@@ -19,13 +19,15 @@ public sealed partial class MainWindow : Window
     private bool _isPanning = false;
     private Point _startPanPoint;
     private int _renderMs = 0;
-    
+
+    private readonly Stopwatch sw = new();
+
     public MainWindow()
     {
         InitializeComponent();
 
-        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
-        RenderOptions.SetEdgeMode(this, EdgeMode.Aliased);
+        RenderOptions.SetBitmapScalingMode(MandelbrotImage, BitmapScalingMode.HighQuality);
+        RenderOptions.SetEdgeMode(MandelbrotImage, EdgeMode.Aliased);
 
         // Add event handlers for zooming, panning, and resizing.
         this.MouseWheel += MainWindow_MouseWheel;
@@ -186,17 +188,13 @@ public sealed partial class MainWindow : Window
 
     private void GenerateMandelbrotFrame()
     {
-        var sw = new Stopwatch();
-        sw.Start();
+        sw.Restart();
 
         var parameters = _fractalState.GenerateParameters();
-
         _gpu.Kernel(parameters, _stagingBuffer);
-
         CreateFrameBitmap(_stagingBuffer);
 
         sw.Stop();
-
         _renderMs = (int)sw.Elapsed.TotalMilliseconds;
         UpdateTextOverlay();
     }
