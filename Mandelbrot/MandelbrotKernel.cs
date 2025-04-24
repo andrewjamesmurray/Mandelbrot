@@ -81,7 +81,7 @@ public static class MandelbrotKernel
         uint color;
         if (iterations < maxIter)
         {
-            var normalized = (byte)((float)iterations / maxIter * Palette.NumShades);
+            var normalized = (short)((float)iterations / maxIter * Palette.NumShades);
             color = buffers.Palette[normalized];
         }
         else
