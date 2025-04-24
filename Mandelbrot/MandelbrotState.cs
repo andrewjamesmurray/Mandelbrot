@@ -15,6 +15,9 @@ public class MandelbrotState
 
     const double zoomFactorIncrement = 0.95;
 
+    public bool UseBulbCheckOptimization { get; private set; } = true;
+    public bool UsePeriodicityOptimization { get; private set; } = true;
+
     public double Scale => _scale;
     public int MaxIter => _maxIter;
 
@@ -124,9 +127,22 @@ public class MandelbrotState
     {
         _maxIter = Math.Max(_maxIter - 50, 50);
     }
+    public void TogglePeriodicityOptimization()
+    { 
+        UsePeriodicityOptimization = !UsePeriodicityOptimization;
+    }
+
+    public void ToggleBulbCheckOptimization()
+    { 
+        UseBulbCheckOptimization = !UseBulbCheckOptimization;
+    }
 
     public MandelbrotParameters GenerateParameters()
     {
+        byte optimizations = 0;
+        if (UsePeriodicityOptimization) optimizations |= MandelbrotParameters.PeriodicityOptimizationEnum;
+        if (UseBulbCheckOptimization) optimizations |= MandelbrotParameters.BulbCheckOptimizationEnum;
+
         return new MandelbrotParameters
         {
             CenterX = _centerX,
@@ -138,7 +154,8 @@ public class MandelbrotState
             AdjustedScaleYPerPixel = _adjustedScaleY / _height,
             OffsetX = -(_adjustedScaleX / 2) + _centerX,
             OffsetY = -(_adjustedScaleY / 2) + _centerY,
-            maxIter = _maxIter
+            MaxIter = _maxIter,
+            Optimizations = optimizations
         };
     }
 }

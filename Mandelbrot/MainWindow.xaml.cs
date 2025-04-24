@@ -147,6 +147,17 @@ public sealed partial class MainWindow : Window
                     "_centerX = " + _fractalState.CenterX + ";\n" +
                     "_centerY = " + _fractalState.CenterY + ";\n");
                 break;
+
+            case Key.D1:
+                _fractalState.TogglePeriodicityOptimization();
+                ResLabel.Text = "Periodicity Checks: " + _fractalState.UsePeriodicityOptimization;
+                break;
+
+            case Key.D2:
+                _fractalState.ToggleBulbCheckOptimization();
+                ResLabel.Text = "Bulb Checks: " + _fractalState.UseBulbCheckOptimization;
+                break;
+
         }
     }
 

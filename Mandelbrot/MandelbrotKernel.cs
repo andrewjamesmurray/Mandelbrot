@@ -9,19 +9,22 @@ public static class MandelbrotKernel
     const double PeriodicityLimit = 1e-24;
     const float log2 = 0.30102999566f;
 
-    private static int Mandelbrot(double cr, double ci, int maxIter)
+    private static int Mandelbrot(double cr, double ci, int maxIter, byte optimizations)
     {
-        // Period-2 bulb check
-        var ci2 = ci * ci;
-        var crp = cr + 1;
-        if (crp * crp + ci2 < 0.0625) // 1/16
-            return maxIter;
+        if ((optimizations & MandelbrotParameters.BulbCheckOptimizationEnum) == MandelbrotParameters.BulbCheckOptimizationEnum)
+        { 
+            // Period-2 bulb check
+            var ci2 = ci * ci;
+            var crp = cr + 1;
+            if (crp * crp + ci2 < 0.0625) // 1/16
+                return maxIter;
 
-        // Main cardioid bulb check
-        var crm = cr - 0.25;
-        var q = crm * crm + ci2;
-        if (q * (q + crm) < 0.25 * ci2)
-            return maxIter;
+            // Main cardioid bulb check
+            var crm = cr - 0.25;
+            var q = crm * crm + ci2;
+            if (q * (q + crm) < 0.25 * ci2)
+                return maxIter;
+        }
 
         double zr = 0.0, zi = 0.0;
         double prevZr = 0.0, prevZi = 0.0;
@@ -42,16 +45,19 @@ public static class MandelbrotKernel
 
             iter++;
 
-            // Periodicity Checking optimization
-            if (++period > 20)
+            if ((optimizations & MandelbrotParameters.PeriodicityOptimizationEnum) == MandelbrotParameters.PeriodicityOptimizationEnum)
             {
-                if (Math.Abs(zr - prevZr) < PeriodicityLimit && Math.Abs(zi - prevZi) < PeriodicityLimit)
-                    return maxIter;
+                // Periodicity Checking optimization
+                if (++period > 20)
+                {
+                    if (Math.Abs(zr - prevZr) < PeriodicityLimit && Math.Abs(zi - prevZi) < PeriodicityLimit)
+                        return maxIter;
 
-                prevZr = zr;
-                prevZi = zi;
+                    prevZr = zr;
+                    prevZi = zi;
 
-                period = 0;
+                    period = 0;
+                }
             }
         }
 
@@ -67,8 +73,8 @@ public static class MandelbrotKernel
         var cr = (x * parameters.AdjustedScaleXPerPixel) + parameters.OffsetX;
         var ci = (y * parameters.AdjustedScaleYPerPixel) + parameters.OffsetY;
 
-        var maxIter = parameters.maxIter;
-        var iterations = Mandelbrot(cr, ci, maxIter);
+        var maxIter = parameters.MaxIter;
+        var iterations = Mandelbrot(cr, ci, maxIter, parameters.Optimizations);
 
         uint color;
         if (iterations < maxIter)

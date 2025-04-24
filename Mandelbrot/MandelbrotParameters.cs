@@ -5,6 +5,9 @@ namespace Mandelbrot;
 
 public struct MandelbrotParameters
 {
+    public const byte PeriodicityOptimizationEnum = 1;
+    public const byte BulbCheckOptimizationEnum = 2;
+
     public double CenterX { get; set; }
     public double CenterY { get; set; }
     public double Scale { get; set; }
@@ -16,5 +19,7 @@ public struct MandelbrotParameters
 
     public double OffsetX { get; set; }
     public double OffsetY { get; set; }
-    public int maxIter { get; set; }
+    public int MaxIter { get; set; }
+
+    public byte Optimizations { get; set; }
 }
