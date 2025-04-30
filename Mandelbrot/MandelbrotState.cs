@@ -13,8 +13,10 @@ public class MandelbrotState
     private double _scale;
     private int _maxIter;
 
-    const double zoomFactorIncrement = 0.95;
-
+    const double ZoomFactorIncrement = 0.95;
+    const double ZoomLimit = 1e-13;
+    const double AutoZoomLimit = 1e-13;
+   
     public bool UseBulbCheckOptimization { get; private set; } = true;
     public bool UsePeriodicityOptimization { get; private set; } = true;
 
@@ -117,7 +119,7 @@ public class MandelbrotState
     private static int ComputeMaxIter(double scale)
     {
         // Logarithmic boost keeps growth manageable at deep zooms
-        var divisor = Math.Max(scale, 1e-13); // Smaller numbers could generate a negative number
+        var divisor = Math.Max(scale, ZoomLimit); // Smaller numbers could generate a negative number
         double zoom = 1.0 / divisor;
 
         // Instead of log(zoom), use log(max(zoom, 1)) so log never goes negative
@@ -129,10 +131,10 @@ public class MandelbrotState
 
     public bool ZoomNext()
     {
-        if (_scale < 1e-12) // With 64-bit doubles, quality degrades too much beyond this
+        if (_scale < AutoZoomLimit) // With 64-bit doubles, quality degrades too much beyond this
             return false;
 
-        SetScale(_scale * zoomFactorIncrement);
+        SetScale(_scale * ZoomFactorIncrement);
 
         return true;
     }
@@ -144,7 +146,7 @@ public class MandelbrotState
         double normY = (positionY / _height - 0.5) * _scale;
 
         // Adjust scale based on the scroll direction
-        var scaleMultiplier = zoomDelta > 0 ? zoomFactorIncrement : 1 - (zoomFactorIncrement - 1);
+        var scaleMultiplier = zoomDelta > 0 ? ZoomFactorIncrement : 1 - (ZoomFactorIncrement - 1);
 
         SetScale(_scale * scaleMultiplier);
 
