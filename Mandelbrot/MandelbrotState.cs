@@ -64,9 +64,13 @@ public class MandelbrotState
     /// </summary>
     public void ResetForZoom()
     {
+        // BUTT
+        _centerX = 0.26523357180865775;
+        _centerY = 0.003055480740359563;
+
         // INNER MANDELBROT
-        _centerX = -1.0401309460202168;
-        _centerY = 0.3487766281539035;
+        //_centerX = -1.0401309460202168;
+        //_centerY = 0.3487766281539035;
 
         // ORIGINAL
         // _centerX = -1.2535516388693015;
