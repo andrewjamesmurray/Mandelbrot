@@ -96,6 +96,12 @@ public class MandelbrotState
         //_centerX = -1.4208192303359084;
         //_centerY = -1.1046267101656378E-06;
 
+
+        //recursive spirals
+        //_centerX = -0.6266946049017867;
+        //_centerY = 0.40126480268366255;
+
+
         SetScale(10);
     }
 
