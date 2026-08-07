@@ -1,4 +1,6 @@
-﻿namespace Mandelbrot;
+﻿using System.CodeDom;
+
+namespace Mandelbrot;
 
 public class MandelbrotState
 {
@@ -128,6 +130,20 @@ public class MandelbrotState
         // Grow iteration count smoothly with zoom depth
         return (int)Math.Max(350, (200 * Math.Pow(safeLog, 1.5)));
     }
+
+    //public int AdjustRenderTime(int previousRenderTime, int targetRenderTime)
+    //{
+    //    if (previousRenderTime <= targetRenderTime)
+    //        return _maxIter; // TODO: perhaps we *increase* the maxIter if needed
+        
+    //    var previousFps = ((double)1000 / previousRenderTime);
+    //    var targetFps = ((double)1000 / targetRenderTime);
+
+    //    var previousIter = _maxIter;
+
+    //    _maxIter = 
+
+    //}
 
     public bool ZoomNext()
     {
