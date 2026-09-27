@@ -28,8 +28,12 @@ public static class Palette
 
             if (i >= n)
             {
+                // t < 1 keeps i <= n - 1, so this is only a guard against a future
+                // change to the ramp; without the continue it would fall through and
+                // read palette[n + 1].
                 var v = palette[n];
                 results[gradient] = ARGBToUInt(0xFF, v.R, v.G, v.B);
+                continue;
             }
 
             var c1 = palette[i];

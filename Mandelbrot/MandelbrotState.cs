@@ -1,34 +1,83 @@
-﻿using System.CodeDom;
-
 namespace Mandelbrot;
 
 public class MandelbrotState
 {
-    private readonly short _width;
-    private readonly short _height;
-    private readonly double _aspectRatio;
+    const double ZoomFactorIncrement = 0.95;
 
-    private double _centerX;
-    private double _centerY;
+    /// <summary>
+    /// Perturbation keeps working until the square of a per-pixel delta stops being a
+    /// normal double, which is far past where a double centre coordinate gave out.
+    /// </summary>
+    const double ZoomLimit = 1e-150;
+
+    /// <summary>
+    /// Where a double coordinate stops resolving a pixel. Above this, straight iteration
+    /// is both exact and the cheapest thing to do; below it, perturbation takes over.
+    /// Measured against pixels iterated at arbitrary precision: direct fp64 is exact to
+    /// 1e-12, 67% wrong at 1e-14 and 100% wrong at 1e-20.
+    /// </summary>
+    const double DirectDoubleLimit = 1e-13;
+
+    /// <summary>Precision the centre is always carried at, so no zoom path can run short of digits.</summary>
+    static readonly int CenterBits = HpReal.BitsForScale(ZoomLimit);
+
+    const int MinIter = 350;
+    const int MaxIterCeiling = 1_000_000;
+    const int IterStep = 50;
+
+    private readonly int _width;
+    private readonly int _height;
+    private readonly double _aspectRatio;
+    private readonly ReferenceOrbit _orbit = new();
+
+    private HpComplex _center;
     private double _adjustedScaleX;
     private double _adjustedScaleY;
     private double _scale;
     private int _maxIter;
 
-    const double ZoomFactorIncrement = 0.95;
-    const double ZoomLimit = 1e-13;
-    const double AutoZoomLimit = 1e-13;
-   
     public bool UseBulbCheckOptimization { get; private set; } = true;
     public bool UsePeriodicityOptimization { get; private set; } = true;
+    public bool UseSeriesApproximation { get; private set; } = true;
 
     public double Scale => _scale;
     public int MaxIter => _maxIter;
+    public HpComplex Center => _center;
+    public double CenterX => _center.Real.ToDouble();
+    public double CenterY => _center.Imaginary.ToDouble();
 
-    public double CenterX => _centerX;
-    public double CenterY => _centerY;
+    /// <summary>Iterations the series approximation skipped on the last prepared frame.</summary>
+    public int SkippedIterations => _orbit.SkipIterations;
 
-    public MandelbrotState(short width, short height)
+    /// <summary>Set to force one kernel regardless of depth; null follows the zoom.</summary>
+    public RenderMode? ForcedMode { get; set; }
+
+    /// <summary>
+    /// Straight iteration while a double still resolves a pixel, then perturbation.
+    ///
+    /// The fp32 kernels are deliberately not on this ladder. A consumer GPU runs fp64 at
+    /// a fraction of the fp32 rate, so they are far faster, but measured against exact
+    /// arbitrary-precision pixels they are wrong wherever that speed would matter:
+    /// direct fp32 is already 1% wrong at scale 1e-2 and 34% at 1e-4, and fp32
+    /// perturbation holds up only while the iteration cap stays low - exact at maxIter
+    /// 2000, 13% wrong at 10000, because the error compounds between rebases. They stay
+    /// reachable through <see cref="ForcedMode"/> for experimenting.
+    /// </summary>
+    public RenderMode Mode =>
+        ForcedMode ?? (_scale > DirectDoubleLimit ? RenderMode.DirectDouble : RenderMode.PerturbDouble);
+
+    public int Optimizations
+    {
+        get
+        {
+            var flags = 0;
+            if (UsePeriodicityOptimization) flags |= MandelbrotParameters.PeriodicityOptimizationFlag;
+            if (UseBulbCheckOptimization) flags |= MandelbrotParameters.BulbCheckOptimizationFlag;
+            return flags;
+        }
+    }
+
+    public MandelbrotState(int width, int height)
     {
         _width = width;
         _height = height;
@@ -36,6 +85,25 @@ public class MandelbrotState
 
         Reset();
     }
+
+    private void SetCenter(double x, double y) => _center = HpComplex.FromDouble(x, y, CenterBits);
+
+    /// <summary>
+    /// Jump straight to a view. Used by the points of interest below and by the tests;
+    /// called at most once per user action, never from a render loop.
+    /// </summary>
+    public void SetView(HpComplex center, double scale, int? maxIter = null)
+    {
+        SetScale(scale);
+        _center = center.WithFractionBits(CenterBits);
+
+        if (maxIter is not null)
+            _maxIter = Math.Clamp(maxIter.Value, 1, MaxIterCeiling);
+    }
+
+    /// <summary>Parses a centre from decimal literals and jumps to it.</summary>
+    public void SetView(string centerX, string centerY, double scale, int? maxIter = null) =>
+        SetView(HpComplex.Parse(centerX, centerY, CenterBits), scale, maxIter);
 
     private void SetScale(double newValue)
     {
@@ -57,20 +125,25 @@ public class MandelbrotState
 
     public void Reset()
     {
-        _centerX = -0.74;
-        _centerY = 0.15;
-
         SetScale(2.5);
+        SetCenter(-0.74, 0.15);
     }
 
+    /// <summary>The working precision a centre is carried at, in fractional bits.</summary>
+    public static int CenterPrecisionBits => CenterBits;
+
     /// <summary>
-    /// Reset to a point of interest
+    /// Reset to a point of interest. Centres are parsed from decimal strings rather than
+    /// double literals: to zoom to 1e-N around a point you have to know the point to at
+    /// least N digits, and a double runs out at 16.
     /// </summary>
     public void ResetForZoom()
     {
         // BUTT
-        _centerX = 0.26523357180865775;
-        _centerY = 0.003055480740359563;
+        SetView(
+            "0.2652335718086577500000000000000000000000",
+            "0.0030554807403595630000000000000000000000",
+            scale: 10);
 
         // INNER MANDELBROT
         //_centerX = -1.0401309460202168;
@@ -100,19 +173,16 @@ public class MandelbrotState
         //_centerX = -1.4208192303359084;
         //_centerY = -1.1046267101656378E-06;
 
-
-        //recursive spirals
+        // recursive spirals
         //_centerX = -0.6266946049017867;
         //_centerY = 0.40126480268366255;
-
-
-        SetScale(10);
     }
 
     public void Move(double deltaX, double deltaY)
     {
-        _centerX -= deltaX / _width * _scale;
-        _centerY -= deltaY / _height * _scale;
+        _center = new HpComplex(
+            _center.Real - HpReal.FromDouble(deltaX / _width * _scale, CenterBits),
+            _center.Imaginary - HpReal.FromDouble(deltaY / _height * _scale, CenterBits));
     }
 
     /// <summary>
@@ -128,26 +198,13 @@ public class MandelbrotState
         double safeLog = Math.Log10(Math.Max(1.0, zoom));
 
         // Grow iteration count smoothly with zoom depth
-        return (int)Math.Max(350, (200 * Math.Pow(safeLog, 1.5)));
+        var iterations = Math.Max(MinIter, 200 * Math.Pow(safeLog, 1.5));
+        return (int)Math.Min(iterations, MaxIterCeiling);
     }
-
-    //public int AdjustRenderTime(int previousRenderTime, int targetRenderTime)
-    //{
-    //    if (previousRenderTime <= targetRenderTime)
-    //        return _maxIter; // TODO: perhaps we *increase* the maxIter if needed
-        
-    //    var previousFps = ((double)1000 / previousRenderTime);
-    //    var targetFps = ((double)1000 / targetRenderTime);
-
-    //    var previousIter = _maxIter;
-
-    //    _maxIter = 
-
-    //}
 
     public bool ZoomNext()
     {
-        if (_scale < AutoZoomLimit) // With 64-bit doubles, quality degrades too much beyond this
+        if (_scale < ZoomLimit)
             return false;
 
         SetScale(_scale * ZoomFactorIncrement);
@@ -168,48 +225,72 @@ public class MandelbrotState
 
         // Adjust the center point based on the normalized mouse position.
         var normMultiplier = (1 - _scale / (_scale * scaleMultiplier));
-        _centerX -= normX * normMultiplier;
-        _centerY -= normY * normMultiplier;
+        _center = new HpComplex(
+            _center.Real - HpReal.FromDouble(normX * normMultiplier, CenterBits),
+            _center.Imaginary - HpReal.FromDouble(normY * normMultiplier, CenterBits));
     }
 
-    public void IncreaseMaxIter()
+    public void IncreaseMaxIter() => _maxIter = Math.Min(_maxIter + IterStep, MaxIterCeiling);
+
+    public void DecreaseMaxIter() => _maxIter = Math.Max(_maxIter - IterStep, IterStep);
+
+    public void TogglePeriodicityOptimization() => UsePeriodicityOptimization = !UsePeriodicityOptimization;
+
+    public void ToggleBulbCheckOptimization() => UseBulbCheckOptimization = !UseBulbCheckOptimization;
+
+    public void ToggleSeriesApproximation() => UseSeriesApproximation = !UseSeriesApproximation;
+
+    /// <summary>Full-precision centre, for pasting back into a point-of-interest list.</summary>
+    public string DescribeCenter()
     {
-        _maxIter += 50;
+        var digits = (int)Math.Max(20, Math.Log10(1.0 / Math.Max(_scale, ZoomLimit)) + 8);
+        return $"\"{_center.Real.ToDecimalString(digits)}\",\n\"{_center.Imaginary.ToDecimalString(digits)}\"\n";
     }
 
-    public void DecreaseMaxIter()
+    /// <summary>
+    /// Builds the kernel parameters for the next frame and, in the perturbation modes,
+    /// brings the reference orbit up to date. The orbit is cached across frames: while
+    /// auto-zooming the centre never moves, so it is only ever extended.
+    /// </summary>
+    public (MandelbrotParameters Parameters, ReferenceOrbit? Orbit) PrepareFrame()
     {
-        _maxIter = Math.Max(_maxIter - 50, 50);
-    }
-    public void TogglePeriodicityOptimization()
-    { 
-        UsePeriodicityOptimization = !UsePeriodicityOptimization;
-    }
+        var deltaX = _adjustedScaleX / _width;
+        var deltaY = _adjustedScaleY / _height;
+        var originX = -(_adjustedScaleX / 2);
+        var originY = -(_adjustedScaleY / 2);
 
-    public void ToggleBulbCheckOptimization()
-    { 
-        UseBulbCheckOptimization = !UseBulbCheckOptimization;
-    }
-
-    public MandelbrotParameters GenerateParameters()
-    {
-        byte optimizations = 0;
-        if (UsePeriodicityOptimization) optimizations |= MandelbrotParameters.PeriodicityOptimizationEnum;
-        if (UseBulbCheckOptimization) optimizations |= MandelbrotParameters.BulbCheckOptimizationEnum;
-
-        return new MandelbrotParameters
+        var parameters = new MandelbrotParameters
         {
-            CenterX = _centerX,
-            CenterY = _centerY,
-            Scale = _scale,
             Width = _width,
             Height = _height,
-            AdjustedScaleXPerPixel = _adjustedScaleX / _width,
-            AdjustedScaleYPerPixel = _adjustedScaleY / _height,
-            OffsetX = -(_adjustedScaleX / 2) + _centerX,
-            OffsetY = -(_adjustedScaleY / 2) + _centerY,
             MaxIter = _maxIter,
-            Optimizations = optimizations
+            DeltaX = deltaX,
+            DeltaY = deltaY,
+            OffsetX = originX + CenterX,
+            OffsetY = originY + CenterY,
+            PerturbOriginX = originX,
+            PerturbOriginY = originY,
+            PaletteScale = (float)Palette.NumShades / _maxIter,
+            InvRadius = 1.0
         };
+
+        var mode = Mode;
+        if (mode is not (RenderMode.PerturbFloat or RenderMode.PerturbDouble))
+            return (parameters, null);
+
+        var cornerRadius = Math.Sqrt(originX * originX + originY * originY);
+        _orbit.Update(_center, _scale, _maxIter, cornerRadius, deltaX, UseSeriesApproximation);
+
+        parameters.RefLength = _orbit.Length;
+        parameters.SkipIterations = _orbit.SkipIterations;
+        parameters.InvRadius = 1.0 / _orbit.Radius;
+        parameters.SeriesAr = _orbit.SeriesA.Real;
+        parameters.SeriesAi = _orbit.SeriesA.Imaginary;
+        parameters.SeriesBr = _orbit.SeriesB.Real;
+        parameters.SeriesBi = _orbit.SeriesB.Imaginary;
+        parameters.SeriesCr = _orbit.SeriesC.Real;
+        parameters.SeriesCi = _orbit.SeriesC.Imaginary;
+
+        return (parameters, _orbit);
     }
 }
