@@ -2,7 +2,8 @@ namespace Mandelbrot;
 
 public class MandelbrotState
 {
-    const double ZoomFactorIncrement = 0.95;
+    /// <summary>Scale multiplier per auto-zoom step.</summary>
+    public const double ZoomFactorIncrement = 0.95;
 
     /// <summary>
     /// Perturbation keeps working until the square of a per-pixel delta stops being a

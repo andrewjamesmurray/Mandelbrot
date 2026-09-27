@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -11,24 +10,23 @@ public sealed partial class MainWindow : Window
     /// <summary>The overlay is text layout on the UI thread; it does not need 60 Hz.</summary>
     const double OverlayIntervalMs = 100;
 
-    private readonly Stopwatch _renderTimer = new();
     private readonly uint[] _palette = Palette.GenerateColorLookup();
+    private readonly DisplayDescent _descent = new();
+    private readonly ScaleTransform _magnification = new(1.0, 1.0);
 
-    private IComputeAdapter _compute = null!;
-    private MandelbrotState _fractalState = null!;
+    private FramePump _pump = null!;
     private WriteableBitmap _bitmap = null!;
     private Int32Rect _rectangle;
     private int _pixelCount;
 
-    private bool _isZooming;
     private bool _isPanning;
-    private bool _frameDirty = true;
     private Point _startPanPoint;
 
-    private double _renderMs;
-    private double _frameMs;
+    private RenderedFrame? _latest;
     private TimeSpan _lastRenderingTime;
+    private double _frameMs;
     private double _msSinceOverlay = OverlayIntervalMs;
+    private string _announcement = "";
 
     public MainWindow()
     {
@@ -36,9 +34,10 @@ public sealed partial class MainWindow : Window
 
         // The bitmap is sized to device pixels and tagged with the matching DPI, so it
         // lands on screen 1:1. Nearest-neighbour then skips WPF's resampling filter
-        // entirely instead of running Fant over a multi-megapixel image every frame.
+        // instead of running Fant over a multi-megapixel image every frame.
         RenderOptions.SetBitmapScalingMode(MandelbrotImage, BitmapScalingMode.NearestNeighbor);
         RenderOptions.SetEdgeMode(MandelbrotImage, EdgeMode.Aliased);
+        MandelbrotImage.RenderTransform = _magnification;
 
         this.MouseWheel += MainWindow_MouseWheel;
         this.MouseRightButtonDown += MainWindow_MouseRightButtonDown;
@@ -56,38 +55,37 @@ public sealed partial class MainWindow : Window
         var height = Math.Max(1, (int)Math.Round(ActualHeight * dpi.DpiScaleY));
 
         _pixelCount = width * height;
-        _fractalState = new MandelbrotState(width, height);
         _bitmap = new WriteableBitmap(width, height, 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Bgra32, null);
         _rectangle = new Int32Rect(0, 0, width, height);
-
-        _compute = GpuAdapter.Create(width, height, _palette);
-
         MandelbrotImage.Source = _bitmap;
-        ResLabel.Text = $"{width}x{height}\n{_compute.Description}";
 
-        // Driving from the composition clock paces frames against the display instead of
-        // against Task.Delay, whose resolution is coarser than a frame to begin with.
+        _pump = new FramePump(width, height, _palette);
+        ResLabel.Text = $"{width}x{height}";
+
+        // Driving from the composition clock paces the display against the monitor.
+        // All the actual work happens on the pump's thread, so a 300 ms frame no
+        // longer freezes the window.
         CompositionTarget.Rendering += RenderingHandler;
     }
 
     private void RenderingHandler(object? sender, EventArgs e)
     {
+        var elapsedSeconds = 1.0 / 60.0;
         if (e is RenderingEventArgs args)
         {
             if (_lastRenderingTime != TimeSpan.Zero)
+            {
                 _frameMs = (args.RenderingTime - _lastRenderingTime).TotalMilliseconds;
+                elapsedSeconds = Math.Clamp(_frameMs / 1000.0, 1e-4, 0.25);
+            }
 
             _lastRenderingTime = args.RenderingTime;
         }
 
-        if (_isZooming && !_fractalState.ZoomNext())
-            _isZooming = false;
+        if (_pump.TryTake(out var frame) && frame is not null)
+            Present(frame);
 
-        if (!_isZooming && !_frameDirty)
-            return;
-
-        _frameDirty = false;
-        GenerateMandelbrotFrame();
+        AdvanceDisplayScale(elapsedSeconds);
 
         _msSinceOverlay += _frameMs;
         if (_msSinceOverlay >= OverlayIntervalMs)
@@ -97,11 +95,49 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private void Present(RenderedFrame frame)
+    {
+        _bitmap.Lock();
+        try
+        {
+            unsafe
+            {
+                var destination = new Span<uint>(_bitmap.BackBuffer.ToPointer(), _pixelCount);
+                frame.Pixels.AsSpan(0, _pixelCount).CopyTo(destination);
+            }
+
+            _bitmap.AddDirtyRect(_rectangle);
+        }
+        finally
+        {
+            _bitmap.Unlock();
+        }
+
+        _descent.OnFrame(frame.LogScale, frame.FromAutoZoom);
+
+        var previous = _latest;
+        _latest = frame;
+        if (previous is not null)
+            _pump.Recycle(previous);
+    }
+
+    /// <summary>
+    /// Advances the displayed scale and magnifies the newest frame to cover whatever
+    /// the render thread has not caught up with. See <see cref="DisplayDescent"/>.
+    /// </summary>
+    private void AdvanceDisplayScale(double elapsedSeconds)
+    {
+        _descent.Advance(elapsedSeconds, _pump.IsZooming);
+
+        var factor = _descent.Magnification;
+        _magnification.ScaleX = factor;
+        _magnification.ScaleY = factor;
+    }
+
     private void MainWindow_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
-        _isZooming = false;
-        _fractalState.Reset();
-        Invalidate();
+        _pump.StopZoom();
+        _pump.Post(state => state.Reset());
     }
 
     /// <summary>
@@ -133,22 +169,21 @@ public sealed partial class MainWindow : Window
         var deltaX = currentPoint.X - _startPanPoint.X;
         var deltaY = currentPoint.Y - _startPanPoint.Y;
 
-        _fractalState.Move(deltaX, deltaY);
-
         // Update the start point for the next movement calculation.
         _startPanPoint = currentPoint;
 
-        Invalidate();
+        _pump.StopZoom();
+        _pump.Post(state => state.Move(deltaX, deltaY));
     }
 
     private void MainWindow_MouseWheel(object sender, MouseWheelEventArgs e)
     {
         // Get the mouse position relative to the image.
         var mousePos = e.GetPosition(MandelbrotImage);
+        var delta = e.Delta;
 
-        _fractalState.ZoomAndMove(e.Delta, mousePos.X, mousePos.Y);
-
-        Invalidate();
+        _pump.StopZoom();
+        _pump.Post(state => state.ZoomAndMove(delta, mousePos.X, mousePos.Y));
     }
 
     private void KeyDownHandler(object sender, KeyEventArgs e)
@@ -160,117 +195,98 @@ public sealed partial class MainWindow : Window
                 break;
 
             case Key.Space:
-                _isZooming = !_isZooming;
-                if (_isZooming)
-                    _fractalState.ResetForZoom();
-                Invalidate();
+                if (_pump.IsZooming)
+                    _pump.StopZoom();
+                else
+                    _pump.StartZoom();
                 break;
 
             case Key.Up:
-                _fractalState.IncreaseMaxIter();
-                Invalidate();
+                _pump.Post(state => state.IncreaseMaxIter());
                 break;
 
             case Key.Down:
-                _fractalState.DecreaseMaxIter();
-                Invalidate();
+                _pump.Post(state => state.DecreaseMaxIter());
                 break;
 
             case Key.Enter:
-                Clipboard.SetText(_fractalState.DescribeCenter());
+                CopyCentreToClipboard();
                 break;
 
             case Key.D1:
-                _fractalState.TogglePeriodicityOptimization();
-                Announce($"Periodicity Checks: {_fractalState.UsePeriodicityOptimization}");
+                Toggle(state => state.TogglePeriodicityOptimization(),
+                    state => $"Periodicity Checks: {state.UsePeriodicityOptimization}");
                 break;
 
             case Key.D2:
-                _fractalState.ToggleBulbCheckOptimization();
-                Announce($"Bulb Checks: {_fractalState.UseBulbCheckOptimization}");
+                Toggle(state => state.ToggleBulbCheckOptimization(),
+                    state => $"Bulb Checks: {state.UseBulbCheckOptimization}");
                 break;
 
             case Key.D3:
-                _fractalState.ToggleSeriesApproximation();
-                Announce($"Series Approximation: {_fractalState.UseSeriesApproximation}");
+                Toggle(state => state.ToggleSeriesApproximation(),
+                    state => $"Series Approximation: {state.UseSeriesApproximation}");
                 break;
 
             case Key.D0:
-                _fractalState.ForcedMode = _fractalState.ForcedMode is null ? RenderMode.DirectDouble : null;
-                Announce(_fractalState.ForcedMode is null ? "Kernel: auto" : "Kernel: forced fp64 direct");
+                Toggle(state => state.ForcedMode = state.ForcedMode is null ? RenderMode.DirectDouble : null,
+                    state => state.ForcedMode is null ? "Kernel: auto" : "Kernel: forced fp64 direct");
                 break;
 
             case Key.G:
-                SwapComputeAdapter();
+                _pump.SwapAdapter();
                 break;
         }
     }
 
-    private void Announce(string message)
+    /// <summary>Applies a toggle on the render thread and reports the result back.</summary>
+    private void Toggle(Action<MandelbrotState> change, Func<MandelbrotState, string> describe)
     {
-        ResLabel.Text = message;
-        Invalidate();
+        _pump.Post(state =>
+        {
+            change(state);
+            var message = describe(state);
+            Dispatcher.BeginInvoke(() => _announcement = message);
+        });
     }
 
-    private void Invalidate() => _frameDirty = true;
-
-    /// <summary>Switches between the GPU and the CPU renderer, which is handy for
-    /// checking that the two agree on a frame.</summary>
-    private void SwapComputeAdapter()
-    {
-        var wasGpu = _compute is GpuAdapter;
-        _compute.Dispose();
-        _compute = wasGpu
-            ? CpuAdapter.Create(_rectangle.Width, _rectangle.Height, _palette)
-            : GpuAdapter.Create(_rectangle.Width, _rectangle.Height, _palette);
-
-        Announce(_compute.Description);
-    }
+    private void CopyCentreToClipboard() =>
+        _pump.Post(state =>
+        {
+            var description = state.DescribeCenter();
+            Dispatcher.BeginInvoke(() =>
+            {
+                Clipboard.SetText(description);
+                _announcement = "centre copied";
+            });
+        });
 
     private void UpdateTextOverlay()
     {
+        var frame = _latest;
+        if (frame is null)
+            return;
+
         FpsLabel.Text =
-            $"render:  {_renderMs:F1} ms\n" +
+            $"render:  {frame.RenderMs:F1} ms\n" +
             $"frame:   {_frameMs:F1} ms\n" +
-            $"maxIter: {_fractalState.MaxIter}\n" +
-            $"skipped: {_fractalState.SkippedIterations}\n" +
-            $"kernel:  {_fractalState.Mode}\n" +
-            $"scale:   {_fractalState.Scale:E}\n";
+            $"queued:  {_pump.QueueDepth} / {FramePump.QueueCapacity}\n" +
+            $"descent: {_descent.DecadesPerSecond:F2} decades/s\n" +
+            $"maxIter: {frame.MaxIter}\n" +
+            $"skipped: {frame.SkippedIterations}\n" +
+            $"kernel:  {frame.Mode}\n" +
+            $"scale:   {Math.Exp(_descent.DisplayLogScale):E}\n";
+
+        ResLabel.Text = _announcement.Length > 0
+            ? $"{_rectangle.Width}x{_rectangle.Height}\n{_pump.AdapterDescription}\n{_announcement}"
+            : $"{_rectangle.Width}x{_rectangle.Height}\n{_pump.AdapterDescription}";
     }
 
     protected override void OnClosed(EventArgs e)
     {
         CompositionTarget.Rendering -= RenderingHandler;
-        _compute?.Dispose();
+        _pump?.Dispose();
 
         base.OnClosed(e);
-    }
-
-    private void GenerateMandelbrotFrame()
-    {
-        _renderTimer.Restart();
-
-        var (parameters, orbit) = _fractalState.PrepareFrame();
-
-        _bitmap.Lock();
-        try
-        {
-            unsafe
-            {
-                // Straight into the locked back buffer: no staging array, and no second
-                // full-frame copy to get the pixels there.
-                var destination = new Span<uint>(_bitmap.BackBuffer.ToPointer(), _pixelCount);
-                _compute.Render(parameters, _fractalState.Mode, _fractalState.Optimizations, orbit, destination);
-            }
-
-            _bitmap.AddDirtyRect(_rectangle);
-        }
-        finally
-        {
-            _bitmap.Unlock();
-        }
-
-        _renderTimer.Stop();
-        _renderMs = _renderTimer.Elapsed.TotalMilliseconds;
     }
 }

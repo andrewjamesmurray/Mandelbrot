@@ -9,8 +9,11 @@
         Width="1024" 
         Height="768">
     
-    <Grid>
-        <Image Name="MandelbrotImage" Stretch="Fill" Margin="0,0,0,0" />
+    <Grid ClipToBounds="True">
+        <!-- RenderTransformOrigin centres the magnification the auto-zoom applies
+             between finished frames, so the motion stays smooth when frames are slow. -->
+        <Image Name="MandelbrotImage" Stretch="Fill" Margin="0,0,0,0"
+               RenderTransformOrigin="0.5,0.5" />
 
         <TextBlock Name="FpsLabel"
                Foreground="CornflowerBlue"
